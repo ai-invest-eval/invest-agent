@@ -28,8 +28,10 @@ uv run python --version
 ├── data/
 ├── .env.example
 ├── .gitignore
+├── .pre-commit-config.yaml
 ├── pyproject.toml
 ├── uv.lock
+├── CONTRIBUTING.md
 └── README.md
 ```
 
@@ -46,3 +48,5 @@ uv run python --version
 | `outputs/` | 생성된 결과물. 필요할 때 생성하며 Git에서 제외합니다. |
 
 구현 파일과 하위 디렉터리는 필요할 때 추가합니다.
+
+커밋과 머지 규칙은 [CONTRIBUTING.md](CONTRIBUTING.md)를 참고합니다.
