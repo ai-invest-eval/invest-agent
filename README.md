@@ -24,7 +24,9 @@ uv run python --version
 ├── src/
 │   ├── agents/
 │   ├── rag/
-│   └── tools/
+│   ├── tools/
+│   ├── schemas.py
+│   └── state.py
 ├── data/
 ├── .env.example
 ├── .gitignore
@@ -41,6 +43,8 @@ uv run python --version
 | --- | --- |
 | `app.py` | 실행 진입점. 실행 코드는 추후 추가합니다. |
 | `src/` | 공통 State 및 Graph 코드 |
+| `src/state.py` | 에이전트가 공유하는 State |
+| `src/schemas.py` | 에이전트 간 데이터 형식 |
 | `src/agents/` | 에이전트별 구현 |
 | `src/rag/` | 문서 색인 및 검색 |
 | `src/tools/` | 에이전트가 사용하는 도구 |
