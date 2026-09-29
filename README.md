@@ -15,3 +15,34 @@ uv run python --version
 ```
 
 마지막 명령에서 `Python 3.11.11`이 출력되면 환경 설정이 완료된 것입니다. API를 사용할 때는 `.env`에 키를 입력합니다.
+
+## Project Structure
+
+```text
+.
+├── app.py
+├── src/
+│   ├── agents/
+│   ├── rag/
+│   └── tools/
+├── data/
+├── .env.example
+├── .gitignore
+├── pyproject.toml
+├── uv.lock
+└── README.md
+```
+
+## Directory Guide
+
+| 경로 | 용도 |
+| --- | --- |
+| `app.py` | 실행 진입점. 실행 코드는 추후 추가합니다. |
+| `src/` | 공통 State 및 Graph 코드 |
+| `src/agents/` | 에이전트별 구현 |
+| `src/rag/` | 문서 색인 및 검색 |
+| `src/tools/` | 에이전트가 사용하는 도구 |
+| `data/` | RAG 원본 자료 |
+| `outputs/` | 생성된 결과물. 필요할 때 생성하며 Git에서 제외합니다. |
+
+구현 파일과 하위 디렉터리는 필요할 때 추가합니다.
