@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+build/
+dist/
+
+# Local settings and secrets
+.env
+.env.local
+.env.*.local
+
+# Tool caches and reports
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+*.log
+
+# Generated data and reports
+data/index/
+outputs/
+*.faiss
+
+# Operating system files
+.DS_Store
+Thumbs.db
