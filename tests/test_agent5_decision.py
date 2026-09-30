@@ -97,7 +97,7 @@ def test_update_contract(state):
         rec["name"] == "가상 바이오 A"
         and rec["total"] == out["investment_decision"]["total"]
     )
-    assert rec["startup_profile"] is state["startup_profile"]
+    assert rec["startup_profile"] == state["startup_profile"]
     assert state == before  # 입력 State를 바꾸지 않음
     d = out["investment_decision"]
     assert set(d) == {
@@ -267,3 +267,31 @@ def test_validate_decision_catches_mismatch():
     }
     with pytest.raises(ValueError):
         scoring.validate_decision(d)
+
+
+# ── 리뷰 반영 ────────────────────────────────────────────────
+def test_confirmed_none_from_profile_json_is_not_missing():
+    # 플랫폼 B: 자체 파이프라인 없음이 확인된 사실([])이면 결측이 아니다
+    s = load("platform")
+    table = answers(4, QH=ans(1, quote='"pipeline": []'))
+    d = evaluate(s, FakeLLM(table))
+    assert not d["question_evidence"]["QH"]["missing"]
+    assert d["question_scores"]["QH"] == 1
+
+
+def test_history_record_is_copy(state):
+    out = build_update(state, FakeLLM(answers(4)))
+    rec = out["evaluation_history"][0]
+    assert rec["startup_profile"] == state["startup_profile"]
+    assert rec["startup_profile"] is not state["startup_profile"]
+    assert (
+        rec["question_evidence"] is not out["investment_decision"]["question_evidence"]
+    )
+
+
+def test_unknown_business_model_does_not_ask_qd(state):
+    from src.agents.agent5_decision import build_prompts
+
+    state["startup_profile"]["business_model"] = "unknown"
+    market = next(p for a, _, p in build_prompts(state, {}) if a == "market")
+    assert "[QD]" not in market and "질문 QE, QF 각각" in market

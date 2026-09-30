@@ -5,6 +5,7 @@ LLM(Judge): 영역별 6회 호출로 질문별 점수·근거·출처 번호·�
 채점 기준은 docs/investment_criteria_v4.md, 형식은 docs/data_contracts.md를 따른다.
 """
 
+import copy
 import json
 from datetime import datetime
 from typing import Literal
@@ -85,6 +86,8 @@ def build_prompts(
     refs = "\n".join(_ref_line(i, r) for i, r in ref_catalog.items()) or "(없음)"
     prompts = []
     for area, qs in cfg.QUESTIONS.items():
+        if business_model not in ("pipeline", "platform"):
+            qs = [q for q in qs if q != "QD"]  # unknown → QD는 코드가 결측 처리
         context = "\n\n".join(
             f"### {key}\n{_as_text(state.get(key))}" for key in cfg.AREA_CONTEXT[area]
         )
@@ -183,14 +186,17 @@ def evaluate(state: InvestmentState, llm) -> InvestmentDecision:
 
 def build_update(state: InvestmentState, llm) -> InvestmentDecisionUpdate:
     decision = evaluate(state, llm)
-    record: EvaluationRecord = {
-        **decision,
-        "name": state["selected_startup"]["name"],
-        "startup_profile": state["startup_profile"],
-        "tech_analysis": state.get("tech_analysis", ""),
-        "market_analysis": state.get("market_analysis", ""),
-        "competitor_analysis": state.get("competitor_analysis", ""),
-    }
+    # 다음 후보 평가 때 원본이 바뀌어도 이력이 따라 바뀌지 않도록 복사해서 저장한다.
+    record: EvaluationRecord = copy.deepcopy(
+        {
+            **decision,
+            "name": state["selected_startup"]["name"],
+            "startup_profile": state["startup_profile"],
+            "tech_analysis": state.get("tech_analysis", ""),
+            "market_analysis": state.get("market_analysis", ""),
+            "competitor_analysis": state.get("competitor_analysis", ""),
+        }
+    )
     return {"investment_decision": decision, "evaluation_history": [record]}
 
 
