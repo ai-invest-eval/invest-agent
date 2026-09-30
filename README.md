@@ -121,6 +121,8 @@ cp .env.example .env
 # PDF 보고서 출력을 위한 시스템 라이브러리 설치 (WeasyPrint 의존성)
 brew install pango                       # macOS
 # sudo apt-get install -y libpango-1.0-0 # Ubuntu/Debian
+# Windows: GTK3-Runtime Win64 설치 (https://github.com/tschoonj/GTK-for-Windows-Runtime-Environment-Installer/releases)
+#          (설치 경로: `C:\Program Files\GTK3-Runtime Win64`, 미설치 시 Markdown만 자동 보존)
 
 # PDF 색인 1회 생성·재사용 (첫 실행은 임베딩 모델 다운로드)
 uv run --extra rag python -m src.rag.build_index
@@ -144,7 +146,7 @@ uv run --extra rag python -m src.rag.evaluate
 
 `app.py --agent 1|2|3a|3b|4|5|6 --state <JSON>`으로 개별 노드를 실행할 수도 있습니다. 3-A/3-B 샘플·색인 명령은 [RAG 실행 가이드](docs/taewoo_quickstart.md)에 있습니다. 전체 Graph는 API 호출과 색인 준비가 필요하며, 실제 기업 4곳으로 탐색부터 보고서 생성까지 실행했습니다(6장). 가상 이력 명령은 실제 검색·RAG·채점을 대신하지 않고 보고서 생성 경로만 검증합니다.
 
-6번은 Markdown → HTML → WeasyPrint로 PDF를 만듭니다. 시스템 Pango가 필요합니다(macOS: `brew install pango`; 다른 OS는 [설치 안내](https://doc.courtbouillon.org/weasyprint/stable/first_steps.html)). 기본 결과는 `outputs/investment_report.md`와 `.pdf`이며, LLM Judge를 실행한 경우에만 `_judge.json`이 추가됩니다. `REPORT_OUTPUT_DIR`·`REPORT_FILE_STEM`으로 저장 위치와 이름을 바꿀 수 있습니다. 생성 파일과 색인은 Git에서 제외됩니다.
+6번은 Markdown → HTML → WeasyPrint로 PDF를 만듭니다. 시스템 Pango가 필요합니다(macOS: `brew install pango`; Windows: [GTK3-Runtime](https://github.com/tschoonj/GTK-for-Windows-Runtime-Environment-Installer/releases) 설치; 다른 OS는 [설치 안내](https://doc.courtbouillon.org/weasyprint/stable/first_steps.html)). Pango 라이브러리 미설치 환경에서는 Markdown만 정상 저장되는 fallback이 동작합니다. 기본 결과는 `outputs/investment_report.md`와 `.pdf`이며, LLM Judge를 실행한 경우에만 `_judge.json`이 추가됩니다. `REPORT_OUTPUT_DIR`·`REPORT_FILE_STEM`으로 저장 위치와 이름을 바꿀 수 있습니다. 생성 파일과 색인은 Git에서 제외됩니다.
 
 ## 6. 투자 보고서의 핵심 포인트
 
