@@ -66,7 +66,7 @@ class EvaluationRecord(InvestmentDecision):
 class Reference(TypedDict):
     # TODO(3-A·3-B·4번): 출처별 page/url 필수 조건과 누락 메타데이터 표현 확정 필요
     company: str
-    agent: Literal["tech", "market", "competitor"]
+    agent: Literal["discovery", "profile", "tech", "market", "competitor"]
     title: str
     source: Literal["RAG", "web"]
     issuer: str | None
@@ -74,3 +74,38 @@ class Reference(TypedDict):
     doc_type: Literal["report", "paper", "web"]
     page: NotRequired[int | str]
     url: NotRequired[str]
+
+
+class StartupSearchUpdate(TypedDict):
+    candidate_startups: list[CandidateStartup]
+    selected_startup: CandidateStartup | None
+    references: list[Reference]
+
+
+class CompanyProfileUpdate(TypedDict):
+    startup_profile: StartupProfile
+    references: list[Reference]
+
+
+class TechAnalysisUpdate(TypedDict):
+    tech_analysis: str
+    references: list[Reference]
+
+
+class MarketAnalysisUpdate(TypedDict):
+    market_analysis: str
+    references: list[Reference]
+
+
+class CompetitorAnalysisUpdate(TypedDict):
+    competitor_analysis: str
+    references: list[Reference]
+
+
+class InvestmentDecisionUpdate(TypedDict):
+    investment_decision: InvestmentDecision
+    evaluation_history: list[EvaluationRecord]
+
+
+class ReportUpdate(TypedDict):
+    final_report: str

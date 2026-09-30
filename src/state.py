@@ -34,7 +34,7 @@ class InvestmentState(TypedDict, total=False):
 
     # 5번: 기업별 평가 이력 (누적)
     evaluation_history: Annotated[list[EvaluationRecord], operator.add]
-    # 3-A·3-B·4번: 참고 출처 (누적)
+    # 1·2·3-A·3-B·4번: 참고 출처 (누적)
     references: Annotated[list[Reference], operator.add]
 
     # 6번: 최종 투자 보고서 (마크다운)
