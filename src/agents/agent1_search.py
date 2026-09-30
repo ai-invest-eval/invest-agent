@@ -14,11 +14,10 @@ from datetime import UTC, datetime
 from typing import Literal
 from urllib.parse import urlsplit
 from uuid import uuid4
-from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, ConfigDict
 
-from src.config import PROJECT_ROOT
+from src.config import KST, PROJECT_ROOT
 from src.schemas import CandidateStartup, Reference, StartupSearchUpdate
 from src.state import InvestmentState
 from src.tools.structured_llm import (
@@ -327,7 +326,7 @@ def qualify(lead, discovery_documents, generator, search, index, log):
         ASSESSMENT_PROMPT,
         {
             "company": {"name": lead.name, "aliases": lead.aliases},
-            "as_of": datetime.now(ZoneInfo("Asia/Seoul")).date().isoformat(),
+            "as_of": datetime.now(KST).date().isoformat(),
             "documents": documents,
         },
     )

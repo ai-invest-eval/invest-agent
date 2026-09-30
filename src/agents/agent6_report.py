@@ -16,11 +16,10 @@ from collections import Counter
 from datetime import datetime
 from pathlib import Path
 from typing import Literal
-from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, Field
 
-from src.config import LLM_MODEL, LLM_TEMPERATURE, PROJECT_ROOT
+from src.config import KST, LLM_MODEL, LLM_TEMPERATURE, PROJECT_ROOT
 from src.schemas import EvaluationRecord, ReportUpdate
 from src.state import InvestmentState
 from src.tools.report_format import (
@@ -599,7 +598,7 @@ def _facts_2_7(record: EvaluationRecord) -> str:
 
 
 def _header(records, keyword: str) -> str:
-    return f'# AI 신약개발 스타트업 투자 심사 보고서\n\n<p class="meta">작성일 {datetime.now(ZoneInfo("Asia/Seoul")):%Y-%m-%d} · 탐색 키워드 "{keyword}" · 평가 후보 {len(records)}곳</p>'
+    return f'# AI 신약개발 스타트업 투자 심사 보고서\n\n<p class="meta">작성일 {datetime.now(KST):%Y-%m-%d} · 탐색 키워드 "{keyword}" · 평가 후보 {len(records)}곳</p>'
 
 
 def _build_pass_report(
