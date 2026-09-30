@@ -1,6 +1,6 @@
 """Shared data shapes exchanged between agents."""
 
-from typing import Any, Literal, NotRequired, TypedDict
+from typing import Literal, NotRequired, TypedDict
 
 QuestionKey = Literal[
     "QA",
@@ -20,18 +20,57 @@ QuestionKey = Literal[
     "QO",
 ]
 QuestionScore = Literal[1, 2, 3, 4, 5]
+AreaKey = Literal["founder", "market", "product", "moat", "traction", "deal"]
+RiskGateKey = Literal[
+    "clinical_failure",
+    "founder_exit_or_dispute",
+    "patent_loss",
+    "funding_gap_restructuring",
+]
+StageRegion = Literal["domestic", "foreign"]
+DevelopmentStage = Literal[
+    # 복합 임상 표기를 보존한다. 임상 1/2상을 임상 2상으로 승격하지 않는다.
+    "개념",
+    "컴퓨터 예측",
+    "실험 검증",
+    "전임상",
+    "IND 신청",
+    "IND 승인",
+    "임상 1상",
+    "임상 1/2상",
+    "임상 2상",
+    "임상 2/3상",
+    "임상 3상",
+    "허가 신청",
+    "허가 승인",
+]
+
+
+class MonetaryAmount(TypedDict):
+    """기본 통화 단위의 숫자. 보고서 표시는 docs/data_contracts.md 참조."""
+
+    original_amount: float | None
+    original_currency: str | None
+    krw_amount: float | None
+    usd_amount: float | None
+    fx_date: str | None
+    fx_source: str | None
 
 
 class CandidateStartup(TypedDict):
     name: str
-    country: str
-    stage: str
-    source_url: str
+    country: str | None
+    # 국내 시리즈 A / 해외 시리즈 AF. F는 팀 표식이며 단계 순위가 아니다.
+    stage: str | None
+    stage_region: NotRequired[StageRegion | None]
+    stage_original: NotRequired[str | None]
+    source_url: str | None
 
 
 class PipelineItem(TypedDict):
-    indication: str
-    stage: str
+    indication: str | None
+    stage: DevelopmentStage | None
+    stage_original: NotRequired[str | None]
 
 
 class GateChecks(TypedDict):
@@ -47,33 +86,82 @@ class GateChecks(TypedDict):
     funding_gap_restructuring: bool | None
 
 
+class BusinessModelBasis(TypedDict):
+    reason: str
+    source: str | None
+
+
+class Investor(TypedDict):
+    name: str | None
+    kind: Literal["financial", "strategic"] | None
+    follow_on: bool | None
+
+
+class FundingRound(TypedDict):
+    date: str | None
+    stage: str | None
+    stage_region: StageRegion | None
+    stage_original: str | None
+    amount: MonetaryAmount | None
+    investors: list[Investor] | None
+    references: list["Reference"]
+
+
+class Partnership(TypedDict):
+    partner: str | None
+    kind: str | None
+    date: str | None
+    upfront_payment: MonetaryAmount | None
+    references: list["Reference"]
+
+
+class TeamMember(TypedDict):
+    name: str | None
+    role: str | None
+    is_founder: bool | None
+    full_time: bool | None
+    degree: str | None
+    career: str | None
+    references: list["Reference"]
+
+
+class UpfrontPaymentBasis(TypedDict):
+    partner: str | None
+    date: str | None
+    references: list["Reference"]
+
+
 class StartupProfile(TypedDict):
-    # TODO(2·5번): 키 생략/None/빈 목록의 의미를 통일. 숫자·bool에 문자열 사용 금지
-    # TODO(2·5번): 확인된 없음과 미확인 구분, missing_fields의 필드 경로 규칙 합의
-    # TODO(2·5번): 투자·파트너십·팀·선급금·기업가치의 세부 구조 합의
-    # TODO(2·5번): 금액의 통화·단위·기준일과 투자/파이프라인 단계 표기 통일
+    # 미확인 None / 확인된 없음 []·False·0. 날짜·단계는 docs/data_contracts.md 참조
+    # missing_fields는 프로필 기준 점 경로. 수집 결과는 선택 필드도 키를 유지한다.
+    # 투자·파트너십·팀의 내부 구조는 아래 타입 고정. 상세 규칙은 공통 계약 참조
     name: str
     gates: GateChecks
     missing_fields: list[str]
     founded_year: NotRequired[int | None]
     platform: NotRequired[str | None]
-    pipeline: NotRequired[list[PipelineItem]]
-    funding_history: NotRequired[list[dict[str, Any]]]
-    partnerships: NotRequired[list[dict[str, Any]]]
-    team: NotRequired[list[dict[str, Any]]]
+    pipeline: NotRequired[list[PipelineItem] | None]
+    funding_history: NotRequired[list[FundingRound] | None]
+    partnerships: NotRequired[list[Partnership] | None]
+    team: NotRequired[list[TeamMember] | None]
     founder_degree_career: NotRequired[str | None]
     ceo_full_time: NotRequired[bool | None]
-    upfront_payment: NotRequired[dict[str, Any] | None]
-    pre_money_valuation: NotRequired[dict[str, Any] | None]
+    upfront_payment: NotRequired[MonetaryAmount | None]
+    upfront_payment_basis: NotRequired[UpfrontPaymentBasis | None]
+    pre_money_valuation: NotRequired[MonetaryAmount | None]
+    valuation_date: NotRequired[str | None]
+    valuation_references: NotRequired[list["Reference"]]
     lead_indication: NotRequired[str | None]
-    # QD 시장 기준 선택: 자체 신약형 pipeline / 플랫폼형 platform
-    # TODO(2·3-B·5번): 복합 사업/정보 부족의 분류 근거와 미확인 처리 합의
-    business_model: NotRequired[Literal["pipeline", "platform"] | None]
+    lead_service: NotRequired[str | None]
+    # 2번만 분류. 자체 후보물질 권리 보유면 pipeline, 미확인은 unknown (QD 결측).
+    # 일반 결측 None 규칙의 명시적 예외. 3-B·5번은 재분류하지 않는다.
+    business_model: NotRequired[Literal["pipeline", "platform", "unknown"]]
+    business_model_basis: NotRequired[BusinessModelBasis | None]
 
 
 class Reference(TypedDict):
-    # TODO(1·2·3-A·3-B·4·6번): RAG 원문 쪽수와 웹 URL 필수 조건 합의
-    # TODO(3-A·3-B·6번): 발행기관/연도 미확인 표현과 중복 출처 식별 규칙 합의
+    # 실제 활용 출처만 저장. 유형별 REFERENCE 표기는 docs/data_contracts.md 참조
+    # page는 RAG 원문 인용 쪽수, pages는 논문 전체 수록 페이지다.
     company: str
     agent: Literal["discovery", "profile", "tech", "market", "competitor"]
     title: str
@@ -81,8 +169,15 @@ class Reference(TypedDict):
     issuer: str | None
     year: int | None
     doc_type: Literal["report", "paper", "web"]
-    page: NotRequired[int | str]
-    url: NotRequired[str]
+    page: NotRequired[int | str | None]
+    url: NotRequired[str | None]
+    authors: NotRequired[list[str] | None]
+    published_date: NotRequired[str | None]
+    site_name: NotRequired[str | None]
+    journal: NotRequired[str | None]
+    volume: NotRequired[str | None]
+    issue: NotRequired[str | None]
+    pages: NotRequired[str | None]
 
 
 class QuestionEvidence(TypedDict):
@@ -96,22 +191,23 @@ class QuestionEvidence(TypedDict):
 
 class InvestmentDecision(TypedDict):
     # area_scores와 total은 0~100, missing_weight는 가중치 합산 비율(0~1)
-    # TODO(5·6번): 6개 영역의 고정 키, 반올림과 완전 동점 정렬 규칙 합의
-    # TODO(5·6번): hold_reason의 사유 코드와 관문별 상세 설명 형식 합의
+    # 영역 키·보류 사유·정렬 기준은 투자평가기준 v4를 따른다.
+    # 판정·정렬 전 반올림 금지. 기준 문서에 없는 추가 채점·동점 기준을 만들지 않는다.
     # TODO(5번): QA~QO 15개 존재와 1~5점 범위를 런타임 검증
     # TODO(5번): question_scores와 question_evidence.score 일치 검증
     total: float
-    area_scores: dict[str, float]
+    area_scores: dict[AreaKey, float]
     question_scores: dict[QuestionKey, QuestionScore]
     question_evidence: dict[QuestionKey, QuestionEvidence]
     verdict: Literal["통과", "보류"]
     hold_reason: str | None
+    unconfirmed_gates: list[RiskGateKey]
     missing_weight: float
     rationale: str
 
 
 class EvaluationRecord(InvestmentDecision):
-    # 점수 필드는 펼쳐 저장. TODO(5·6번): 보고서에 필요한 추가 필드 합의
+    # 점수 필드는 펼쳐 저장하고 해당 기업의 프로필·분석을 함께 보존한다.
     name: str
     startup_profile: StartupProfile
     tech_analysis: str
