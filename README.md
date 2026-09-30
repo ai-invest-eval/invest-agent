@@ -115,6 +115,10 @@ uv python install 3.11.11
 uv sync --extra rag
 cp .env.example .env
 
+# PDF 보고서 출력을 위한 시스템 라이브러리 설치 (WeasyPrint 의존성)
+brew install pango                       # macOS
+# sudo apt-get install -y libpango-1.0-0 # Ubuntu/Debian
+
 # PDF 색인 1회 생성·재사용 (첫 실행은 임베딩 모델 다운로드)
 uv run --extra rag python -m src.rag.build_index
 
