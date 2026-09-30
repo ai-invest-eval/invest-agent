@@ -1,0 +1,298 @@
+{
+  "T1_식약처평가원_2026_AI의약품_규제심사동향.pdf": {
+    "folder": "technology",
+    "doc_type": "report",
+    "title": "AI 기반 의약품 개발 관련 규제·심사 동향 정보자료집",
+    "issuer": "식품의약품안전평가원",
+    "year": 2026,
+    "published_date": "2026-06-29",
+    "url": "https://www.nifds.go.kr",
+    "doc_id": "T1",
+    "topics": [
+      "regulation"
+    ]
+  },
+  "T2_BRIC_2026_생성형AI_신약개발동향.pdf": {
+    "folder": "technology",
+    "doc_type": "web",
+    "title": "생성형 AI의 바이오·신약개발 혁신 동향: 기술, 사례, 생태계 전망",
+    "authors": [
+      "김가경"
+    ],
+    "issuer": "BRIC",
+    "site_name": "BRIC",
+    "year": 2026,
+    "published_date": "2026-09-10",
+    "url": "https://www.ibric.org/bric/trend/bio-report.do?mode=view&articleNo=10052667",
+    "doc_id": "T2",
+    "topics": [
+      "technology"
+    ]
+  },
+  "T3_한국연구재단_2026_AI단백질신약개발.pdf": {
+    "folder": "technology",
+    "doc_type": "report",
+    "title": "AI 기반 단백질 신약 개발(NRF R&D Brief 2026-15호)",
+    "issuer": "한국연구재단",
+    "year": 2026,
+    "published_date": "2026-05",
+    "url": "https://www.nrf.re.kr",
+    "doc_id": "T3",
+    "topics": [
+      "technology"
+    ]
+  },
+  "T4_StanfordHAI_2026_AIIndex_Ch6_발췌.pdf": {
+    "folder": "technology",
+    "doc_type": "report",
+    "title": "Artificial Intelligence Index Report 2026, Chapter 6: Medicine",
+    "issuer": "Stanford HAI",
+    "year": 2026,
+    "published_date": null,
+    "url": "https://hai.stanford.edu/ai-index/2026-ai-index-report",
+    "page_offset": [
+      257,
+      258,
+      259,
+      260,
+      261,
+      262,
+      263,
+      264,
+      265,
+      268
+    ],
+    "doc_id": "T4",
+    "topics": [
+      "technology"
+    ]
+  },
+  "T5_Jayatunga_2024_AI신약_임상성공률.pdf": {
+    "folder": "technology",
+    "doc_type": "paper",
+    "title": "How successful are AI-discovered drugs in clinical trials? A first analysis and emerging lessons",
+    "authors": [
+      "Jayatunga, M.K.P.",
+      "Ayers, M.",
+      "Bruens, L.",
+      "Jayanth, D.",
+      "Meier, C."
+    ],
+    "journal": "Drug Discovery Today",
+    "volume": "29",
+    "issue": "6",
+    "pages": "104009",
+    "issuer": null,
+    "year": 2024,
+    "url": "https://doi.org/10.1016/j.drudis.2024.104009",
+    "doc_id": "T5",
+    "topics": [
+      "clinical"
+    ]
+  },
+  "M1_BRIC_2026_바이오스타트업_성장전략.pdf": {
+    "folder": "market",
+    "doc_type": "web",
+    "title": "국내외 바이오 스타트업 기술 동향 및 성장 전략 분석",
+    "authors": [
+      "이훈석"
+    ],
+    "issuer": "BRIC",
+    "site_name": "BRIC",
+    "year": 2026,
+    "published_date": "2026-06-18",
+    "url": "https://www.ibric.org/bric/trend/bio-report.do?mode=view&articleNo=10033663",
+    "doc_id": "M1",
+    "topics": [
+      "market",
+      "funding",
+      "exit"
+    ]
+  },
+  "M2_EY_2026_BeyondBorders_발췌.pdf": {
+    "folder": "market",
+    "doc_type": "report",
+    "title": "EY Biotech Beyond Borders Report 2026",
+    "issuer": "EY",
+    "year": 2026,
+    "published_date": "2026-06",
+    "url": "https://www.ey.com/en_us/life-sciences/biotech-outlook",
+    "page_offset": [
+      5,
+      6,
+      7,
+      18,
+      19,
+      21,
+      22,
+      23,
+      24,
+      35,
+      36,
+      37
+    ],
+    "doc_id": "M2",
+    "topics": [
+      "market",
+      "funding",
+      "exit"
+    ]
+  },
+  "M3_과기정통부_2025_생명공학백서_AI신약_발췌.pdf": {
+    "folder": "market",
+    "doc_type": "report",
+    "title": "2025 생명공학백서",
+    "issuer": "과학기술정보통신부",
+    "year": 2025,
+    "published_date": "2025-12",
+    "url": "https://www.bioin.or.kr",
+    "page_offset": [
+      584,
+      585,
+      586,
+      587,
+      588,
+      589,
+      590,
+      591,
+      592,
+      593
+    ],
+    "doc_id": "M3",
+    "topics": [
+      "market",
+      "funding",
+      "exit"
+    ]
+  },
+  "M4_KBIOIS_2025_Vol83_바이오텍VC투자.pdf": {
+    "folder": "market",
+    "doc_type": "report",
+    "title": "글로벌 바이오텍 VC 투자 현황(KBIOIS 브리프 Vol.83)",
+    "issuer": "한국바이오협회",
+    "year": 2025,
+    "published_date": "2025-06-23",
+    "url": "https://www.kbiois.or.kr",
+    "doc_id": "M4",
+    "topics": [
+      "market",
+      "funding",
+      "exit"
+    ]
+  },
+  "M5_KBIOIS_2026_Vol90_헬스케어투자.pdf": {
+    "folder": "market",
+    "doc_type": "report",
+    "title": "글로벌 헬스케어산업 투자 현황 및 전망(KBIOIS 브리프 Vol.90)",
+    "issuer": "한국바이오협회",
+    "year": 2026,
+    "published_date": "2026-02-20",
+    "url": "https://www.kbiois.or.kr",
+    "doc_id": "M5",
+    "topics": [
+      "market",
+      "funding",
+      "exit"
+    ]
+  },
+  "M6_KBIOIS_2026_Vol91_AI생명공학시장.pdf": {
+    "folder": "market",
+    "doc_type": "report",
+    "title": "글로벌 AI 기반 생명공학 시장 현황 및 전망(KBIOIS 브리프 Vol.91)",
+    "issuer": "한국바이오협회",
+    "year": 2026,
+    "published_date": "2026-03-30",
+    "url": "https://www.kbiois.or.kr",
+    "doc_id": "M6",
+    "topics": [
+      "market",
+      "funding",
+      "exit"
+    ]
+  },
+  "M7_KBIOIS_2026_Vol95_전문의약품시장.pdf": {
+    "folder": "market",
+    "doc_type": "report",
+    "title": "글로벌 전문의약품 시장 현황 및 전망(KBIOIS 브리프 Vol.95)",
+    "issuer": "한국바이오협회",
+    "year": 2026,
+    "published_date": "2026-07-27",
+    "url": "https://www.kbiois.or.kr",
+    "doc_id": "M7",
+    "topics": [
+      "market",
+      "funding",
+      "exit"
+    ]
+  },
+  "M8_STEPI_2025_딥테크스타트업_발췌.pdf": {
+    "folder": "market",
+    "doc_type": "report",
+    "title": "한국의 딥테크 스타트업 생태계 리포트",
+    "issuer": "과학기술정책연구원",
+    "year": 2025,
+    "published_date": "2025-12-31",
+    "url": "https://www.stepi.re.kr",
+    "page_offset": [
+      4,
+      5,
+      12,
+      13,
+      14,
+      15
+    ],
+    "doc_id": "M8",
+    "topics": [
+      "market",
+      "funding",
+      "exit"
+    ]
+  },
+  "M9_McKinsey_2026_AI신약_발췌.pdf": {
+    "folder": "market",
+    "doc_type": "web",
+    "title": "AI drug discovery: Focusing on what matters most",
+    "authors": null,
+    "issuer": "McKinsey & Company",
+    "site_name": "McKinsey",
+    "year": 2026,
+    "published_date": "2026-09-21",
+    "url": "https://www.mckinsey.com/industries/life-sciences/our-insights/ai-drug-discovery-focusing-on-what-matters-most",
+    "page_offset": [
+      1,
+      2,
+      4,
+      5,
+      6,
+      8
+    ],
+    "doc_id": "M9",
+    "topics": [
+      "market",
+      "funding",
+      "exit"
+    ]
+  },
+  "M10_과기정통부_2026_BiotechInKorea_발췌.pdf": {
+    "folder": "market",
+    "doc_type": "report",
+    "title": "Biotechnology in Korea 2026",
+    "issuer": "Ministry of Science and ICT, National Biotech Policy Research Center",
+    "year": 2026,
+    "published_date": "2026-08",
+    "url": "https://www.bioin.or.kr",
+    "page_offset": [
+      19,
+      48,
+      49,
+      50,
+      51
+    ],
+    "doc_id": "M10",
+    "topics": [
+      "market",
+      "funding",
+      "exit"
+    ]
+  }
+}

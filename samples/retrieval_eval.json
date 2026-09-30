@@ -1,0 +1,290 @@
+[
+  {
+    "id": "E01",
+    "agent": "tech",
+    "question": "FDA는 AI/ML 의약품의 IND/NDA 심사에서 어떤 부서의 역할을 구분하는가?",
+    "relevant": [
+      {
+        "doc_id": "T1",
+        "page": 10,
+        "quote": "의 치료영역별 심사 부서가 IND/NDA 검토를 수행하고, OTS(Office of Translational Sciences) 산하 OB(Office of Biostatistics)가 AI/ML 통"
+      }
+    ]
+  },
+  {
+    "id": "E02",
+    "agent": "tech",
+    "question": "AI 의약품 규제에서 사용 맥락 Context of Use는 왜 중요한가?",
+    "relevant": [
+      {
+        "doc_id": "T1",
+        "page": 5,
+        "quote": "(International Council for Harmonisation of Technical Requirements for Pharmaceuticals for Human Use) 등 주요 해외 "
+      }
+    ]
+  },
+  {
+    "id": "E03",
+    "agent": "tech",
+    "question": "생성형 AI 확산모델과 단백질 언어모델은 신약 설계에 어떻게 쓰이는가?",
+    "relevant": [
+      {
+        "doc_id": "T2",
+        "page": 1,
+        "quote": "기반 설계로 옮기고 있다. 확산모델과 단백질 언어모델을 비롯한 생성형 기법은 단백질과 항체를 처음부터 설계하고 새로운 화합물을 만들어 낸다. 일부 후보는 이미 임상시험 단계에 진입했다. 이러한 변화"
+      }
+    ]
+  },
+  {
+    "id": "E04",
+    "agent": "tech",
+    "question": "생성형 AI 신약 후보의 실험 검증은 어떤 한계가 있는가?",
+    "relevant": [
+      {
+        "doc_id": "T2",
+        "page": 1,
+        "quote": "한 결과를 얼마나 신뢰하고 검증할 수 있는가를 핵심 질문으로 제시한다. 이를 위해서는 데이터 품질과 표준화, 평가체계, 재현성과 신뢰성 확보가 필요하다. 편향, 안전성, 규제, 지식재산권에 대한 대"
+      }
+    ]
+  },
+  {
+    "id": "E05",
+    "agent": "tech",
+    "question": "AI 기반 단백질 신약 개발의 핵심 접근은 무엇인가?",
+    "relevant": [
+      {
+        "doc_id": "T3",
+        "page": 1,
+        "quote": "을 크게 절감하는 방법임. 단백질 구조 기반 약물 설계, 약물-표적 상호작용 예측 및 검증, 가상의 화합물 스크리닝 등에 AI가 적극 활용되며, 화합물의 독성, 약물 동태, 부작용을 AI로 사전 예"
+      }
+    ]
+  },
+  {
+    "id": "E06",
+    "agent": "tech",
+    "question": "AI 신약 개발에서 독성과 약물 동태 예측은 어떻게 활용되는가?",
+    "relevant": [
+      {
+        "doc_id": "T3",
+        "page": 1,
+        "quote": " 적극 활용되며, 화합물의 독성, 약물 동태, 부작용을 AI로 사전 예측하는 모델들도 개발되고 있음. 초기 약물 후보 발굴부터 임상시험 설계까지 전 과정에 AI를 적용하는 것을 목표로 활발히 연구되"
+      }
+    ]
+  },
+  {
+    "id": "E07",
+    "agent": "tech",
+    "question": "How did MSAPairformer perform on ProteinGym in the AI Index report?",
+    "relevant": [
+      {
+        "doc_id": "T4",
+        "page": 257,
+        "quote": "g larger ones. MSAPairformer, a 111-million-parameter protein language model, outperformed previous leading me"
+      }
+    ]
+  },
+  {
+    "id": "E08",
+    "agent": "tech",
+    "question": "AI Index의 단백질 모델은 규모가 클수록 성능이 좋은가?",
+    "relevant": [
+      {
+        "doc_id": "T4",
+        "page": 257,
+        "quote": "cular biology, smaller models are outperforming larger ones. MSAPairformer, a 111-million-parameter protein la"
+      }
+    ]
+  },
+  {
+    "id": "E09",
+    "agent": "tech",
+    "question": "What success rate was observed for AI-discovered drugs in Phase I?",
+    "relevant": [
+      {
+        "doc_id": "T5",
+        "page": 1,
+        "quote": "ulting Group, 80 Charlotte Street, London W1T 4DF, UK 2 Boston Consulting Group, Gustav Mahlerlaan 40, 1082 MC"
+      }
+    ]
+  },
+  {
+    "id": "E10",
+    "agent": "tech",
+    "question": "AI가 발굴한 약물의 2상 성공률을 어떻게 해석해야 하는가?",
+    "relevant": [
+      {
+        "doc_id": "T5",
+        "page": 1,
+        "quote": "rties. In Phase II the success rate is /C2440%, albeit on a limited sample size, comparable to historic indust"
+      }
+    ]
+  },
+  {
+    "id": "E11",
+    "agent": "market",
+    "question": "AI 신약 개발 시장의 2026년 규모와 2035년 성장 전망은?",
+    "relevant": [
+      {
+        "doc_id": "M1",
+        "page": 5,
+        "quote": "뒤, 2035년까지 연평균 30.5%의 고성장을 지속하여 439억 달러 규모로 성장할 것으로 전망된다 [8]. 이러한 폭발적인 성장은 AI가 전통적인 신약 개발 방식의 고질적 문제인 ‘고비용·저효율"
+      }
+    ]
+  },
+  {
+    "id": "E12",
+    "agent": "market",
+    "question": "바이오 스타트업에서 NewCo 모델은 어떤 성장 전략인가?",
+    "relevant": [
+      {
+        "doc_id": "M1",
+        "page": 8,
+        "quote": " 비용과 이익을 공유하는 'NewCo ( New-company)’나 'Co-Co (Co -development, Co - commercialization)’ 모델이 확산되고 있다. 이는 스타트업이 "
+      }
+    ]
+  },
+  {
+    "id": "E13",
+    "agent": "market",
+    "question": "What does EY report about the biotech IPO environment in 2026?",
+    "relevant": [
+      {
+        "doc_id": "M2",
+        "page": 5,
+        "quote": " half of 2026, IPO investment has continued to recover . In April, Kailera Therapeutics’ IPO generated US$718m"
+      }
+    ]
+  },
+  {
+    "id": "E14",
+    "agent": "market",
+    "question": "How did venture capital investment in biotechnology change?",
+    "relevant": [
+      {
+        "doc_id": "M2",
+        "page": 5,
+        "quote": "cing is around venture capital (VC) and IPOs. The IPO market has displayed hopeful signs in the early months o"
+      }
+    ]
+  },
+  {
+    "id": "E15",
+    "agent": "market",
+    "question": "국내 생명공학 정책에서 생성형 AI 신약 개발은 어떻게 소개되는가?",
+    "relevant": [
+      {
+        "doc_id": "M3",
+        "page": 584,
+        "quote": "로 변화시키고 있다. 특히 생성형 AI 기술이 바이오의약품 개발 영역에 적용되면서 신약 개발 기간이 단축되고 비용이 절감되고 있으 며, 디지털 트윈 기술이 인체와 질병 모델링에 활용되면서 임상시험 "
+      }
+    ]
+  },
+  {
+    "id": "E16",
+    "agent": "market",
+    "question": "글로벌 바이오텍 VC 펀드 조달 시장의 2024년 규모는?",
+    "relevant": [
+      {
+        "doc_id": "M4",
+        "page": 1,
+        "quote": "감소세를 보이며 2024년(120억 달러)에는 2012년과 동일한 수준으로 회귀함. - 자본비용 상승, 팬데믹 이후의 재설정, exit 시장의 제약, 섹터 내 자금 배분 변화 등으로 인해 촉발된 시"
+      }
+    ]
+  },
+  {
+    "id": "E17",
+    "agent": "market",
+    "question": "2025년 글로벌 헬스케어 VC 투자금과 거래 건수는?",
+    "relevant": [
+      {
+        "doc_id": "M5",
+        "page": 1,
+        "quote": " 흐름을 보이며 2025년 4,138억 달러 및 30,836건을 기록함. - 2026년에는 AI 기술이 투자 재개를 견인하며 M&A 및 IPO 중심의 자본 유입이 확대될 것으로 전망됨. · Heal"
+      }
+    ]
+  },
+  {
+    "id": "E18",
+    "agent": "market",
+    "question": "AI 기반 생명공학 시장의 연평균 성장률과 2035년 전망은?",
+    "relevant": [
+      {
+        "doc_id": "M6",
+        "page": 1,
+        "quote": "’25년-‘35년) 연평균 18.5% 성장하여 2035년에는 227억 달러를 나타낼 것으로 전망됨. - 비용 효율적인 프로세스에 대한 관심 확대, 정부의 우호적인 정책 및 자금 지원, 데이터 표준화"
+      }
+    ]
+  },
+  {
+    "id": "E19",
+    "agent": "market",
+    "question": "AI 생명공학 시장은 신약 개발 외 어떤 영역을 포함하는가?",
+    "relevant": [
+      {
+        "doc_id": "M6",
+        "page": 1,
+        "quote": "능을 활용하여 신약 개발, 유전체학, 개인 맞춤형 의학을 발전시키는 기술을 포함함. - 연구개발 효율성 제고를 위해 머신러닝 및 데이터 분석 기술의 도입이 확대되는 추세를 보임. ● 2024년 AI"
+      }
+    ]
+  },
+  {
+    "id": "E20",
+    "agent": "market",
+    "question": "전문의약품 시장 전망에서 치료 분야별 매출 규모는 어디서 확인하는가?",
+    "relevant": [
+      {
+        "doc_id": "M7",
+        "page": 5,
+        "quote": "2026 07 27 (4) 치료 분야별 매출 현황 및 전망 ● 2032년 글로벌 전문의약품 시장 치료 분야별 매출은 종양학(Oncology), 면역조절제(Immunomodulators), 위장관·내"
+      }
+    ]
+  },
+  {
+    "id": "E21",
+    "agent": "market",
+    "question": "한국 딥테크 스타트업은 어떻게 정의되는가?",
+    "relevant": [
+      {
+        "doc_id": "M8",
+        "page": 4,
+        "quote": "04 딥테크(Deep Tech)란 “독특하고 보호되거나 복제하기 어려운 기술적 또는 과학적 우위에 기반한 솔루션”을 의미하는 것으로, 딥테크 스타트업이란 “실험실에서 영감을 얻은 기초연구를 사회에 "
+      }
+    ]
+  },
+  {
+    "id": "E22",
+    "agent": "market",
+    "question": "Why is target validation a bottleneck for AI drug discovery?",
+    "relevant": [
+      {
+        "doc_id": "M9",
+        "page": 2,
+        "quote": "rong—the wrong target, biomarker, or patient population—and even a well-optimized molecule may still fail. Nov"
+      }
+    ]
+  },
+  {
+    "id": "E23",
+    "agent": "market",
+    "question": "AI 신약개발 투자에서 분자 설계에 자본이 집중된 이유는?",
+    "relevant": [
+      {
+        "doc_id": "M9",
+        "page": 1,
+        "quote": "oncentrated in molecule design—the stage with the best data and clearest tools. The industry’s real constraint"
+      }
+    ]
+  },
+  {
+    "id": "E24",
+    "agent": "market",
+    "question": "국내 기술특례상장에서 2025년 바이오 헬스케어 기업 비중은?",
+    "relevant": [
+      {
+        "doc_id": "M10",
+        "page": 19,
+        "quote": "m in 2025, 17 (44.7%) were bio/healthcare-related companies, up from 18 companies (40%) in 2024. The biotechno"
+      }
+    ]
+  }
+]

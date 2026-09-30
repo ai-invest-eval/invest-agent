@@ -1,0 +1,300 @@
+{
+  "selected_startup": {
+    "name": "가상 바이오 A",
+    "country": null,
+    "stage": "시리즈 BF",
+    "source_url": null
+  },
+  "startup_profile": {
+    "missing_fields": [
+      "gates.clinical_failure",
+      "gates.patent_loss",
+      "gates.funding_gap_restructuring"
+    ],
+    "founded_year": 2020,
+    "platform": "AI 기반 신약 설계",
+    "ceo_full_time": true,
+    "name": "가상 바이오 A",
+    "gates": {
+      "not_eligible": false,
+      "subsidiary_of_large_corp": false,
+      "clinical_failure": null,
+      "founder_exit_or_dispute": false,
+      "patent_loss": null,
+      "funding_gap_restructuring": null
+    },
+    "pipeline": [
+      {
+        "indication": "비소세포폐암",
+        "stage": "임상 1/2상",
+        "stage_original": "Phase 1/2"
+      },
+      {
+        "indication": "유방암",
+        "stage": "전임상",
+        "stage_original": "Preclinical"
+      }
+    ],
+    "funding_history": [
+      {
+        "date": "2026-06-15",
+        "stage": "시리즈 BF",
+        "stage_region": "foreign",
+        "stage_original": "Series B",
+        "amount": {
+          "original_amount": 30000000,
+          "original_currency": "USD",
+          "krw_amount": 42000000000,
+          "usd_amount": 30000000,
+          "fx_date": null,
+          "fx_source": "투자평가기준 v4 고정 가정: 1 USD = 1,400 KRW"
+        },
+        "investors": [
+          {
+            "name": "가상 VC A",
+            "kind": "financial",
+            "follow_on": true
+          },
+          {
+            "name": "가상 제약사 A",
+            "kind": "strategic",
+            "follow_on": false
+          }
+        ],
+        "references": [
+          {
+            "company": "가상 바이오 A",
+            "agent": "profile",
+            "title": "[가상 예시] 기업 A IR",
+            "source": "web",
+            "issuer": "가상 바이오 A",
+            "year": 2026,
+            "doc_type": "web",
+            "page": null,
+            "url": "https://example.invalid/company-a/ir",
+            "authors": null,
+            "published_date": "2026-06-15",
+            "site_name": "가상 바이오 A",
+            "journal": null,
+            "volume": null,
+            "issue": null,
+            "pages": null
+          }
+        ]
+      }
+    ],
+    "partnerships": [
+      {
+        "partner": "가상 제약사 A",
+        "kind": "공동개발",
+        "date": "2026-06",
+        "upfront_payment": {
+          "original_amount": 5000000,
+          "original_currency": "USD",
+          "krw_amount": 7000000000,
+          "usd_amount": 5000000,
+          "fx_date": null,
+          "fx_source": "투자평가기준 v4 고정 가정: 1 USD = 1,400 KRW"
+        },
+        "references": [
+          {
+            "company": "가상 바이오 A",
+            "agent": "profile",
+            "title": "[가상 예시] 기업 A IR",
+            "source": "web",
+            "issuer": "가상 바이오 A",
+            "year": 2026,
+            "doc_type": "web",
+            "page": null,
+            "url": "https://example.invalid/company-a/ir",
+            "authors": null,
+            "published_date": "2026-06-15",
+            "site_name": "가상 바이오 A",
+            "journal": null,
+            "volume": null,
+            "issue": null,
+            "pages": null
+          }
+        ]
+      }
+    ],
+    "team": [
+      {
+        "name": "가상 창업자 A",
+        "role": "CEO",
+        "is_founder": true,
+        "full_time": true,
+        "degree": "생명과학 박사",
+        "career": "제약사 개발 경력",
+        "references": [
+          {
+            "company": "가상 바이오 A",
+            "agent": "profile",
+            "title": "[가상 예시] 기업 A IR",
+            "source": "web",
+            "issuer": "가상 바이오 A",
+            "year": 2026,
+            "doc_type": "web",
+            "page": null,
+            "url": "https://example.invalid/company-a/ir",
+            "authors": null,
+            "published_date": "2026-06-15",
+            "site_name": "가상 바이오 A",
+            "journal": null,
+            "volume": null,
+            "issue": null,
+            "pages": null
+          }
+        ]
+      }
+    ],
+    "founder_degree_career": "[가상 예시] 생명과학 박사·제약사 개발 경력",
+    "upfront_payment": {
+      "original_amount": 5000000,
+      "original_currency": "USD",
+      "krw_amount": 7000000000,
+      "usd_amount": 5000000,
+      "fx_date": null,
+      "fx_source": "투자평가기준 v4 고정 가정: 1 USD = 1,400 KRW"
+    },
+    "pre_money_valuation": {
+      "original_amount": 144000000,
+      "original_currency": "USD",
+      "krw_amount": 201600000000,
+      "usd_amount": 144000000,
+      "fx_date": null,
+      "fx_source": "투자평가기준 v4 고정 가정: 1 USD = 1,400 KRW"
+    },
+    "lead_indication": "비소세포폐암",
+    "lead_service": null,
+    "business_model": "pipeline",
+    "business_model_basis": {
+      "reason": "[가상 예시] 기업 A가 권리 보유한 자체 후보물질의 임상 1/2상 진행이 확인됨.",
+      "source": "https://example.invalid/company-a/ir"
+    },
+    "upfront_payment_basis": {
+      "partner": "가상 제약사 A",
+      "date": "2026-06",
+      "references": [
+        {
+          "company": "가상 바이오 A",
+          "agent": "profile",
+          "title": "[가상 예시] 기업 A IR",
+          "source": "web",
+          "issuer": "가상 바이오 A",
+          "year": 2026,
+          "doc_type": "web",
+          "page": null,
+          "url": "https://example.invalid/company-a/ir",
+          "authors": null,
+          "published_date": "2026-06-15",
+          "site_name": "가상 바이오 A",
+          "journal": null,
+          "volume": null,
+          "issue": null,
+          "pages": null
+        }
+      ]
+    },
+    "valuation_date": "2026-06-15",
+    "valuation_references": [
+      {
+        "company": "가상 바이오 A",
+        "agent": "profile",
+        "title": "[가상 예시] 기업 A IR",
+        "source": "web",
+        "issuer": "가상 바이오 A",
+        "year": 2026,
+        "doc_type": "web",
+        "page": null,
+        "url": "https://example.invalid/company-a/ir",
+        "authors": null,
+        "published_date": "2026-06-15",
+        "site_name": "가상 바이오 A",
+        "journal": null,
+        "volume": null,
+        "issue": null,
+        "pages": null
+      }
+    ]
+  },
+  "tech_analysis": "",
+  "market_analysis": "",
+  "competitor_analysis": "",
+  "references": [
+    {
+      "company": "가상 바이오 A",
+      "agent": "profile",
+      "title": "[가상 예시] 기업 A IR",
+      "source": "web",
+      "issuer": "가상 바이오 A",
+      "year": 2026,
+      "doc_type": "web",
+      "page": null,
+      "url": "https://example.invalid/company-a/ir",
+      "authors": null,
+      "published_date": "2026-06-15",
+      "site_name": "가상 바이오 A",
+      "journal": null,
+      "volume": null,
+      "issue": null,
+      "pages": null
+    },
+    {
+      "company": "가상 바이오 A",
+      "agent": "tech",
+      "title": "[가상 예시] 기업 A 기술 소개",
+      "source": "web",
+      "issuer": "가상 바이오 A",
+      "year": 2026,
+      "doc_type": "web",
+      "page": null,
+      "url": "https://example.invalid/company-a/tech",
+      "authors": null,
+      "published_date": null,
+      "site_name": null,
+      "journal": null,
+      "volume": null,
+      "issue": null,
+      "pages": null
+    },
+    {
+      "company": "가상 바이오 A",
+      "agent": "market",
+      "title": "[가상 예시] 항암제 시장 보고서",
+      "source": "RAG",
+      "issuer": "가상 협회",
+      "year": 2026,
+      "doc_type": "report",
+      "page": 12,
+      "url": null,
+      "authors": null,
+      "published_date": null,
+      "site_name": null,
+      "journal": null,
+      "volume": null,
+      "issue": null,
+      "pages": null
+    },
+    {
+      "company": "가상 바이오 A",
+      "agent": "competitor",
+      "title": "[가상 예시] 경쟁사 동향 기사",
+      "source": "web",
+      "issuer": "가상 신문",
+      "year": 2026,
+      "doc_type": "web",
+      "page": null,
+      "url": "https://example.invalid/competitor-news",
+      "authors": null,
+      "published_date": null,
+      "site_name": null,
+      "journal": null,
+      "volume": null,
+      "issue": null,
+      "pages": null
+    }
+  ],
+  "evaluation_history": [],
+  "investment_decision": null
+}
