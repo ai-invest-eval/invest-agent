@@ -1,10 +1,8 @@
 # AI 신약개발 스타트업 투자 평가 에이전트
 
-> **통합 상태:** 이 발표용 README의 전체 Graph·CLI 실행과 15개 PDF 검색 평가 수치는 [`codex/presentation-rubric` 브랜치](https://github.com/ai-invest-eval/invest-agent/tree/codex/presentation-rubric) 기준입니다. 현재 `main`에는 개별 에이전트와 확장된 PDF 20개가 있으며 전체 Graph 연결은 아직 반영되지 않았습니다. 전체 실행 명령은 발표 브랜치에서 사용하세요.
-
 ## 1. 문제 정의와 차별점
 
-초기 바이오 기업은 매출만으로 평가하기 어렵습니다. 신약 후보의 실험·임상 단계, AI 기술의 실제 검증, 제약사 계약의 선급금, 시장의 정의, 특허 권리 범위가 투자 판단을 바꿉니다. 이 프로젝트는 Healthcare AI 중 **AI 신약개발**로 범위를 좁혀 의료 영상 진단 기업과 동일한 잣대로 비교하지 않습니다.
+초기 바이오 기업은 매출만으로 평가하기 어렵습니다. 신약 후보의 실험·임상 단계, AI 기술의 실제 검증, 제약사 계약의 선급금, 시장의 정의, 특허 권리 범위가 투자 판단을 바꿉니다. 이 프로젝트는 Healthcare AI 중 **AI 신약개발**로 범위를 좁혀 의료 영상 진단 기업과 동일한 기준으로 비교하지 않습니다.
 
 | 항목 | 팀이 정한 범위 |
 | --- | --- |
@@ -48,7 +46,7 @@ flowchart TD
 | 5 | [InvestmentDecision](src/agents/agent5_decision.py): 질문별 채점, 결측·관문·판정, 이력 누적 | LLM Judge + 결정론적 코드 |
 | 6 | [ReportWriter](src/agents/agent6_report.py): 전체 순위·추천/무추천 보고서 | 코드 정렬·LLM 문장·PDF 변환 |
 
-## 3. Agentic RAG: 무엇을 검색하고 어떻게 검증하나
+## 3. Agentic RAG
 
 | 코퍼스 | 자료 | 검색 목적 |
 | --- | ---: | --- |
@@ -132,7 +130,7 @@ uv run --extra rag python -m pytest -q
 uv run --extra rag python -m src.rag.evaluate
 ```
 
-`app.py --agent 1|2|3a|3b|4|5|6 --state <JSON>`으로 개별 노드를 실행할 수도 있습니다. 3-A/3-B 샘플·색인 명령은 [RAG 실행 가이드](docs/taewoo_quickstart.md)에 있습니다. 전체 Graph는 API 호출과 색인 준비가 필요하며, **실제 기업의 라이브 끝단 간 실행은 아직 검증되지 않았습니다.** 가상 이력 명령은 실제 검색·RAG·채점을 대신하지 않고 보고서 생성 경로만 검증합니다.
+`app.py --agent 1|2|3a|3b|4|5|6 --state <JSON>`으로 개별 노드를 실행할 수도 있습니다. 3-A/3-B 샘플·색인 명령은 [RAG 실행 가이드](docs/taewoo_quickstart.md)에 있습니다. 전체 Graph는 API 호출과 색인 준비가 필요하며, 실제 기업 4곳으로 탐색부터 보고서 생성까지 실행했습니다(6장). 가상 이력 명령은 실제 검색·RAG·채점을 대신하지 않고 보고서 생성 경로만 검증합니다.
 
 6번은 Markdown → HTML → WeasyPrint로 PDF를 만듭니다. 시스템 Pango가 필요합니다(macOS: `brew install pango`; 다른 OS는 [설치 안내](https://doc.courtbouillon.org/weasyprint/stable/first_steps.html)). 기본 결과는 `outputs/investment_report.md`와 `.pdf`이며, LLM Judge를 실행한 경우에만 `_judge.json`이 추가됩니다. `REPORT_OUTPUT_DIR`·`REPORT_FILE_STEM`으로 저장 위치와 이름을 바꿀 수 있습니다. 생성 파일과 색인은 Git에서 제외됩니다.
 
