@@ -113,6 +113,7 @@ uv run python app.py --agent 6 --state samples/report_state.json
 uv run python app.py --agent 6 --state samples/report_state_no_pass.json
 ```
 
+- 생성 결과는 **LLM-as-a-Judge**로 검증합니다. 소항목별 충실성(데이터에 있는 사실만 썼는가)·관련성(소항목 주제에 맞는가)을 1~5점으로 채점하고, 4점 미만인 부분만 1회 재작성합니다. 그래도 미달이면 평가 근거 문장으로 대체합니다. 채점 결과는 `outputs/investment_report_judge.json`에 저장됩니다.
 - `OPENAI_API_KEY`가 없거나 `REPORT_USE_LLM=0`이면 LLM 대신 평가 이력의 근거 문장으로 같은 목차를 채웁니다.
 - 저장 위치·파일명은 `REPORT_OUTPUT_DIR`, `REPORT_FILE_STEM` 환경변수로 바꿀 수 있습니다.
-- WeasyPrint는 Pango 시스템 라이브러리가 필요합니다. macOS: `brew install pango`, Windows: [MSYS2 설치 안내](https://doc.courtbouillon.org/weasyprint/stable/first_steps.html#windows) 참고. PDF 생성에 실패해도 Markdown 보고서는 반환합니다.
+- WeasyPrint는 Pango 시스템 라이브러리가 필요합니다. macOS: `brew install pango` (Homebrew 경로는 코드가 자동으로 추가), Windows: [MSYS2 설치 안내](https://doc.courtbouillon.org/weasyprint/stable/first_steps.html#windows) 참고. PDF 생성에 실패해도 Markdown 보고서는 반환합니다.

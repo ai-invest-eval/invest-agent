@@ -3,6 +3,8 @@
 흑백 기본 서식, A4, 한글 폰트는 설치된 것 중 앞에서부터 사용한다.
 """
 
+import os
+import sys
 from pathlib import Path
 
 import markdown
@@ -50,18 +52,41 @@ def markdown_to_html(md_text: str, level: int = 0) -> str:
     )
 
 
+def _add_macos_library_path() -> None:
+    """macOS: Homebrew로 설치한 Pango 등을 WeasyPrint가 찾도록 경로를 추가한다.
+
+    WeasyPrint는 라이브러리를 이름으로 찾으므로(ctypes find_library), 실행 중인
+    프로세스의 DYLD_FALLBACK_LIBRARY_PATH에 Homebrew 경로가 있어야 한다.
+    """
+    if sys.platform != "darwin":
+        return
+    current = os.environ.get("DYLD_FALLBACK_LIBRARY_PATH", "")
+    paths = [p for p in current.split(":") if p]
+    for lib_dir in ("/opt/homebrew/lib", "/usr/local/lib"):
+        if Path(lib_dir).is_dir() and lib_dir not in paths:
+            paths.append(lib_dir)
+    os.environ["DYLD_FALLBACK_LIBRARY_PATH"] = ":".join(paths)
+
+
 def render_pdf(md_text: str, level: int = 0) -> tuple[bytes, int]:
     """PDF 바이트와 쪽수. WeasyPrint는 호출 시점에만 import한다."""
+    _add_macos_library_path()
     from weasyprint import HTML
 
     document = HTML(string=markdown_to_html(md_text, level)).render()
     return document.write_pdf(), len(document.pages)
 
 
-def save_outputs(md_text: str, pdf_bytes: bytes, out_dir: Path, stem: str) -> dict:
+def save_outputs(
+    md_text: str, pdf_bytes: bytes | None, out_dir: Path, stem: str
+) -> dict:
+    """Markdown은 항상 저장하고, PDF는 만들어졌을 때만 저장한다."""
     out_dir.mkdir(parents=True, exist_ok=True)
     md_path = out_dir / f"{stem}.md"
-    pdf_path = out_dir / f"{stem}.pdf"
     md_path.write_text(md_text, encoding="utf-8")
-    pdf_path.write_bytes(pdf_bytes)
-    return {"markdown": str(md_path), "pdf": str(pdf_path)}
+    paths = {"markdown": str(md_path), "pdf": None}
+    if pdf_bytes is not None:
+        pdf_path = out_dir / f"{stem}.pdf"
+        pdf_path.write_bytes(pdf_bytes)
+        paths["pdf"] = str(pdf_path)
+    return paths
