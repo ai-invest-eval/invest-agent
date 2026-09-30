@@ -1,35 +1,100 @@
-"""Agent 3-A/3-B 담당자의 FAISS 색인 구현 골격."""
+"""PDF → 모델 토큰 청킹 → FAISS + Kiwi BM25 색인. fingerprint로 기존 색인 재사용."""
 
+import argparse
+import json
+import os
+import tempfile
 from pathlib import Path
 
-from src.config import EMBEDDING_MODEL  # noqa: F401
+from src.config import EMBEDDING_MODEL
+from src.rag.documents import (
+    CHUNK_OVERLAP_TOKENS,
+    CHUNK_SIZE_TOKENS,
+    DATA_DIR,
+    GROUPS,
+    chunk_pages,
+    fingerprint,
+    iter_pages,
+)
+from src.rag.retrieval import INDEX_DIR, encode, lexical_tokens
 
-DATA_DIR = Path(__file__).resolve().parents[2] / "data"
 TECHNOLOGY_DIR = DATA_DIR / "technology"
 MARKET_DIR = DATA_DIR / "market"
-INDEX_DIR = DATA_DIR / "index"
-CHUNK_SIZE_TOKENS = 1000
-CHUNK_OVERLAP_TOKENS = 200
-TOP_K = 5
 
 
-def build_indexes() -> None:
-    # TODO(3-A/3-B 담당): 필요한 PDF/임베딩/FAISS 의존성 추가
-    # TODO(3-A/3-B 담당): TECHNOLOGY_DIR, MARKET_DIR에서 PDF 로딩
-    # TODO(3-A/3-B 담당): DOC_META에 제목·발행기관·연도·유형·URL·원문 쪽수 정의
-    # TODO(3-A/3-B 담당): 논문 저자·학술지·권/호·수록 페이지, 웹 발행일·사이트명 보존
-    # TODO(3-A/3-B 담당): 파일명 NFC 정규화·추출 공백 정리·agent/topic 태그 추가
-    # TODO(3-A/3-B 담당): 1000토큰 청킹·200토큰 겹침, 임베딩 모델 토크나이저 사용
-    # TODO(3-A/3-B 담당): EMBEDDING_MODEL Dense 벡터 생성 후 FAISS 저장
-    # TODO(3-A/3-B 담당): 같은 청크에 Kiwi 형태소 분석+BM25 키워드 인덱스 생성
-    # TODO(3-A/3-B 담당): Dense/BM25 각각 top-5를 RRF로 합쳐 최종 top-5 반환
-    # TODO(3-A/3-B 담당): RRF 상수·영문/전문용어 토큰화·필터 인터페이스 확정
-    # TODO(3-A/3-B 담당): 검색 결과의 근거 적합성·재검색 판단은 3-A/3-B의 LLM 담당
-    # TODO(3-A/3-B 담당): INDEX_DIR/technology, INDEX_DIR/market에 색인 저장
-    # TODO(3-A/3-B 담당): 기존 인덱스 재사용 및 문서 변경 시 재생성 정책 구현
-    # TODO(3-A/3-B 담당): 20~30개 검색 평가셋으로 dense 후보 4개+하이브리드 비교
-    raise NotImplementedError("Agent 3-A/3-B 담당자: RAG 색인 구현 예정")
+def build_indexes(*, agents=("tech", "market"), force=False, model=EMBEDDING_MODEL):
+    import faiss
+    from transformers import AutoTokenizer
+
+    tokenizer = None
+    for agent in agents:
+        stamp = fingerprint(agent, model=model)
+        parent = INDEX_DIR / GROUPS[agent]
+        directory = parent / stamp
+        if not force and all(
+            (directory / f).exists()
+            for f in ("manifest.json", "dense.faiss", "chunks.json", "tokens.json")
+        ):
+            print(f"{agent}: 기존 색인 재사용", flush=True)
+            continue
+        if tokenizer is None:
+            tokenizer = AutoTokenizer.from_pretrained(EMBEDDING_MODEL, use_fast=True)
+        pages = list(iter_pages(agent))
+        chunks = chunk_pages(pages, tokenizer)
+        if not chunks:
+            raise ValueError(f"{agent}: 청크가 없습니다.")
+        print(f"{agent}: 텍스트 페이지 {len(pages)}, {len(chunks)}개 청크", flush=True)
+        vectors = encode([c["text"] for c in chunks], model, progress=True)
+        index = faiss.IndexFlatIP(vectors.shape[1])
+        index.add(vectors)
+        tokens = [lexical_tokens(c["text"]) for c in chunks]
+        manifest = {
+            "fingerprint": stamp,
+            "model": model,
+            "agent": agent,
+            "chunk_count": len(chunks),
+            "dimension": vectors.shape[1],
+            "chunk_size": CHUNK_SIZE_TOKENS,
+            "chunk_overlap": CHUNK_OVERLAP_TOKENS,
+        }
+        parent.mkdir(parents=True, exist_ok=True)
+        # 독자는 manifest가 있는 완성 색인만 연다. 모델/PDF별 디렉터리로 비교 실험도 분리.
+        with tempfile.TemporaryDirectory(dir=parent) as temporary:
+            staging = Path(temporary)
+            faiss.write_index(index, str(staging / "dense.faiss"))
+            for filename, value in [
+                ("chunks.json", chunks),
+                ("tokens.json", tokens),
+                ("manifest.json", manifest),
+            ]:
+                (staging / filename).write_text(
+                    json.dumps(value, ensure_ascii=False, indent=2), encoding="utf-8"
+                )
+            directory.mkdir(exist_ok=True)
+            for filename in (
+                "dense.faiss",
+                "chunks.json",
+                "tokens.json",
+                "manifest.json",
+            ):
+                os.replace(staging / filename, directory / filename)
+        print(f"{agent}: 저장 완료 → {directory}", flush=True)
+
+
+def main():
+    from dotenv import load_dotenv
+
+    from src.config import PROJECT_ROOT
+
+    load_dotenv(PROJECT_ROOT / ".env")
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--agent", choices=["tech", "market", "all"], default="all")
+    parser.add_argument("--force", action="store_true")
+    parser.add_argument("--model", default=EMBEDDING_MODEL)
+    args = parser.parse_args()
+    agents = ("tech", "market") if args.agent == "all" else (args.agent,)
+    build_indexes(agents=agents, force=args.force, model=args.model)
 
 
 if __name__ == "__main__":
-    build_indexes()
+    main()

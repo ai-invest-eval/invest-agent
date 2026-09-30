@@ -17,8 +17,19 @@ dependencies = [
     "weasyprint>=70.0",
 ]
 
+[project.optional-dependencies]
+rag = [
+    "faiss-cpu>=1.15.1",
+    "fonttools>=4.66.1",
+    "kiwipiepy>=0.24.0",
+    "pypdf>=6.19.0",
+    "rank-bm25>=0.2.2",
+    "sentence-transformers>=6.1.0",
+]
+
 [dependency-groups]
 dev = [
     "pre-commit==4.6.2",
+    "pytest>=9.1.1",
     "ruff==0.16.9",
 ]
