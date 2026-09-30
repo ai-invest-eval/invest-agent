@@ -10,6 +10,44 @@
     "doc_id": "T1",
     "topics": [
       "regulation"
+    ],
+    "page_offset": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32,
+      33,
+      34,
+      35,
+      59
     ]
   },
   "T2_BRIC_2026_생성형AI_신약개발동향.pdf": {
@@ -293,6 +331,107 @@
       "market",
       "funding",
       "exit"
+    ]
+  },
+  "T6_BIO_2021_임상단계별성공률_발췌.pdf": {
+    "folder": "technology",
+    "doc_type": "report",
+    "title": "Clinical Development Success Rates and Contributing Factors 2011–2020",
+    "issuer": "BIO, QLS Advisors, Informa Pharma Intelligence",
+    "year": 2021,
+    "published_date": "2021-02",
+    "url": "https://go.bio.org/rs/490-EHZ-999/images/ClinicalDevelopmentSuccessRates2011_2020.pdf",
+    "page_offset": [
+      3,
+      6,
+      7,
+      8,
+      13,
+      17
+    ],
+    "doc_id": "T6",
+    "topics": [
+      "clinical"
+    ]
+  },
+  "M11_IQVIA_2025_치료영역별의약품지출_발췌.pdf": {
+    "folder": "market",
+    "doc_type": "report",
+    "title": "The Global Use of Medicines 2025: Outlook to 2029",
+    "issuer": "IQVIA Institute for Human Data Science",
+    "year": 2025,
+    "published_date": "2025-08-27",
+    "url": "https://www.iqvia.com/-/media/iqvia/pdfs/events/presentation_global-meds-webinar_public.pdf",
+    "page_offset": [
+      9,
+      10,
+      11,
+      12,
+      13,
+      14
+    ],
+    "doc_id": "M11",
+    "topics": [
+      "market"
+    ]
+  },
+  "M12_FDA_2014_미충족의료수요정의_발췌.pdf": {
+    "folder": "market",
+    "doc_type": "report",
+    "title": "Guidance for Industry: Expedited Programs for Serious Conditions – Drugs and Biologics",
+    "issuer": "U.S. Food and Drug Administration",
+    "year": 2014,
+    "published_date": "2014-05",
+    "url": "https://www.fda.gov/media/86377/download",
+    "page_offset": [
+      6,
+      7,
+      8,
+      9,
+      10
+    ],
+    "doc_id": "M12",
+    "topics": [
+      "market",
+      "regulation"
+    ]
+  },
+  "M13_JPMorgan_2026_바이오딜선급금_발췌.pdf": {
+    "folder": "market",
+    "doc_type": "report",
+    "title": "Q2 2026 Biopharma Licensing and Venture Report",
+    "issuer": "J.P. Morgan",
+    "year": 2026,
+    "published_date": null,
+    "url": "https://www.jpmorgan.com/content/dam/jpmorgan/documents/cb/insights/outlook/jpm-biopharma-deck-q2-2026-2.pdf",
+    "page_offset": [
+      2,
+      6,
+      7,
+      12,
+      13
+    ],
+    "doc_id": "M13",
+    "topics": [
+      "funding",
+      "market"
+    ]
+  },
+  "M14_PitchBookNVCA_2026_단계별밸류에이션_발췌.pdf": {
+    "folder": "market",
+    "doc_type": "report",
+    "title": "Q2 2026 PitchBook-NVCA Venture Monitor",
+    "issuer": "PitchBook, NVCA",
+    "year": 2026,
+    "published_date": "2026-07",
+    "url": "https://nvca.org/wp-content/uploads/2026/07/Q2-2026-PitchBook-NVCA-Venture-Monitor.pdf",
+    "page_offset": [
+      9,
+      10
+    ],
+    "doc_id": "M14",
+    "topics": [
+      "funding"
     ]
   }
 }
