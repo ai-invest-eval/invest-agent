@@ -13,9 +13,10 @@ import json
 import logging
 import re
 from datetime import datetime
-from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel
+
+from src.config import KST
 
 from src.agents import agent2_utils as u
 from src.agents.agent2_models import (
@@ -311,7 +312,7 @@ class CompanyProfileAgent:
         if not selected or not selected.get("name"):
             raise ValueError("Agent 2는 유효한 selected_startup이 필요합니다.")
         name = selected["name"]
-        today = self.today or datetime.now(ZoneInfo("Asia/Seoul")).date()
+        today = self.today or datetime.now(KST).date()
         lang = self._lang(selected)
         run = _Run(name)
 

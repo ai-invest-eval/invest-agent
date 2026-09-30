@@ -1,6 +1,12 @@
-"""공통 기본값. 담당 구현에서 동일한 설정을 사용한다."""
-
+from datetime import timedelta, timezone
 from pathlib import Path
+
+try:
+    from zoneinfo import ZoneInfo
+
+    KST = ZoneInfo("Asia/Seoul")
+except Exception:
+    KST = timezone(timedelta(hours=9))
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_MAX_CANDIDATES = 15
