@@ -60,6 +60,12 @@ def main() -> None:
             update = node(state)
         except NotImplementedError as exc:
             parser.exit(1, f"미구현: {exc}\n")
+        except ValueError as exc:
+            parser.exit(1, f"실행 중단: {exc}\n")
+        except RuntimeError as exc:
+            if args.agent != "1":
+                raise
+            parser.exit(1, f"실행 중단: {exc}\n")
         print(json.dumps(update, ensure_ascii=False, indent=2))
         return
 
