@@ -78,6 +78,10 @@ QD 수치는 금액·통화·연도·시장 정의를 함께 제시하세요. �
 unknown이면 QD는 '사업 모델 미확인으로 정보 부족'이며 다른 시장 질문(QE/QF)은 분석할 수 있습니다.
 M1 AI 신약 시장과 M6 AI 생명공학 시장은 서로 다른 시장입니다. 동일 수치처럼 비교하지 마세요.
 QE 미충족 수요, QF 질환/모달리티 확장, 제약사 수요, 파트너십, 투자·Exit 환경을 구분하세요.
+기준 문서의 용도와 한계: M11은 치료 영역별 글로벌 의약품 지출(QD 상위 시장 맥락, 특정 질환 시장 규모 아님),
+M12는 FDA의 미충족 의료 수요·신속 심사 정의(QE 판단 기준), M13은 바이오 라이선싱 선급금 기준(파트너십 조건 비교),
+M14는 미국 벤처 전 산업 단계별 밸류에이션 기준(바이오 전용 아님, 참고용),
+T5는 AI 신약 임상 성공률, T6은 BIO 전체 신약 임상 단계별 성공률(AI 신약과 구분).
 계획을 임상 진입으로, IND 신청을 승인으로, 예측을 실험 검증으로 올리지 마세요.
 조건부 계약 총액은 매출/선급금이 아닙니다. 숫자·연도·단위는 출처의 조건을 보존하세요.
 """
@@ -183,11 +187,11 @@ class RagAnalysisAgent:
             },
         )
 
-        def retrieve(queries):
+        def retrieve(queries, first=False):
             # 대표 시장은 upstream이 지정. QD 자료를 우선 검색하되 나머지 분석도 이어간다.
             requests = [(query.query, None, query.topic) for query in queries]
             if self.agent == "market" and model in ("pipeline", "platform") and market:
-                doc_ids = ["M7"] if model == "pipeline" else ["M1", "M6"]
+                doc_ids = ["M11", "M7"] if model == "pipeline" else ["M1", "M6"]
                 requests = [
                     (f"{market} 시장 규모 매출 전망 market size revenue", doc_ids, None)
                 ] + requests[:2]
@@ -205,6 +209,30 @@ class RagAnalysisAgent:
                         ]
                         + [(queries[0].query, None, queries[0].topic)]
                     )
+            if first:
+                # LLM 검색어에 맡기면 기준 문서가 걸리지 않을 수 있어 고정 검색을 추가한다.
+                if self.agent == "market":
+                    requests += [
+                        (
+                            "미충족 의료 수요 정의 serious condition unmet medical need",
+                            ["M12"],
+                            None,
+                        ),
+                        ("라이선스 계약 선급금 upfront payment 중앙값", ["M13"], None),
+                        (
+                            "단계별 기업가치 밸류에이션 pre-money valuation by stage",
+                            ["M14"],
+                            None,
+                        ),
+                    ]
+                else:
+                    requests += [
+                        (
+                            "임상 단계별 성공률 phase transition success rate",
+                            ["T6", "T5"],
+                            None,
+                        )
+                    ]
             for query, doc_ids, topic in requests:
                 for hit in self.search(query, doc_ids=doc_ids, topic=topic):
                     if hit["agent"] != self.agent:
@@ -229,7 +257,7 @@ class RagAnalysisAgent:
                 },
             )
 
-        retrieve(plan.queries)
+        retrieve(plan.queries, first=True)
         relevance = assess()
         retrieval_rounds = 1
         if not relevance.sufficient:

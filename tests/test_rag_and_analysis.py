@@ -109,7 +109,8 @@ def test_retry_once_then_missing(state):
         return []
 
     result = RagAnalysisAgent("tech", search, ask)(state)
-    assert len(searches) == 2
+    # 1회차: 계획 검색 1 + QH 고정 검색 1, 2회차: 재검색 1
+    assert len(searches) == 3
     assert "정보 부족" in result["tech_analysis"]
     assert result["references"] == []
 
@@ -156,7 +157,7 @@ def test_only_used_new_references(state):
 
 
 @pytest.mark.parametrize(
-    "model,expected", [("pipeline", ["M7"]), ("platform", ["M1", "M6"])]
+    "model,expected", [("pipeline", ["M11", "M7"]), ("platform", ["M1", "M6"])]
 )
 def test_market_model_and_target_preserved(state, model, expected):
     state["startup_profile"]["business_model"] = model
@@ -407,3 +408,20 @@ def test_citation_repair_is_one_bounded_llm_call(state):
     assert len(calls) == 2
     assert "citation_errors" in calls[1]
     assert result["references"][0]["title"] == "검증 자료"
+
+
+def test_fixed_reference_doc_searches(state):
+    calls = []
+
+    def search(q, **kwargs):
+        calls.append(kwargs.get("doc_ids"))
+        return []
+
+    state["startup_profile"]["business_model"] = "pipeline"
+    state["startup_profile"]["lead_indication"] = "폐암"
+    RagAnalysisAgent("market", search, FakeAsk())(state)
+    for expected in (["M11", "M7"], ["M12"], ["M13"], ["M14"]):
+        assert expected in calls
+    calls.clear()
+    RagAnalysisAgent("tech", search, FakeAsk())(state)
+    assert ["T6", "T5"] in calls
