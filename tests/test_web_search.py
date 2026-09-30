@@ -43,6 +43,31 @@ class SearchTests(unittest.TestCase):
         self.assertNotIn("secret-key", str(raised.exception))
         self.assertTrue(raised.exception.__suppress_context__)
 
+    def test_domain_filter_is_restrict_and_normalized(self):
+        client = Mock()
+        client.search.return_value = {"results": []}
+        TavilySearch(client=client).search(
+            "query", include_domains=[" StartupRecipe.co.kr ", "startuprecipe.co.kr"]
+        )
+        self.assertEqual(
+            client.search.call_args.kwargs["include_domains"], ["startuprecipe.co.kr"]
+        )
+        self.assertEqual(
+            client.search.call_args.kwargs["include_domains_mode"], "restrict"
+        )
+
+    def test_invalid_domain_does_not_call_api(self):
+        client = Mock()
+        for domain in [
+            "https://example.com/path",
+            "",
+            "example.com.evil/path",
+            "-bad.com",
+        ]:
+            with self.subTest(domain=domain), self.assertRaises(ValueError):
+                TavilySearch(client=client).search("query", include_domains=[domain])
+        client.search.assert_not_called()
+
     def test_invalid_response_is_not_empty_success(self):
         client = Mock()
         client.search.return_value = {"error": "invalid response"}

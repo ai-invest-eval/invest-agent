@@ -1,5 +1,7 @@
 """Tavily 검색 경계. import 시 키 로딩이나 API 호출을 하지 않는다."""
 
+import re
+from collections.abc import Sequence
 from typing import Any, Literal, Protocol
 
 
@@ -36,6 +38,7 @@ class TavilySearch:
         *,
         max_results: int = 10,
         search_depth: Literal["basic", "advanced"] = "advanced",
+        include_domains: Sequence[str] | None = None,
     ) -> dict[str, Any]:
         if not query.strip():
             raise ValueError("검색어를 입력하세요.")
@@ -43,6 +46,20 @@ class TavilySearch:
             raise ValueError("max_results는 1~20 사이여야 합니다.")
         if search_depth not in ("basic", "advanced"):
             raise ValueError("search_depth는 basic 또는 advanced여야 합니다.")
+        domains = list(
+            dict.fromkeys(domain.strip().lower() for domain in include_domains or [])
+        )
+        if any(
+            not re.fullmatch(
+                r"(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?",
+                domain,
+            )
+            for domain in domains
+        ):
+            raise ValueError("include_domains에는 URL이 아닌 도메인을 지정하세요.")
+        options: dict[str, Any] = {}
+        if domains:
+            options = {"include_domains": domains, "include_domains_mode": "restrict"}
         try:
             response = self._client.search(
                 query=query.strip(),
@@ -54,6 +71,7 @@ class TavilySearch:
                 include_images=False,
                 auto_parameters=False,
                 timeout=self._timeout,
+                **options,
             )
         except Exception:  # noqa: BLE001 -- 외부 SDK 경계에서 인증정보 노출을 차단한다.
             # SDK 예외 본문에 요청·인증 정보가 포함될 수 있으므로 출력하지 않는다.
