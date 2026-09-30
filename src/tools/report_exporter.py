@@ -52,25 +52,31 @@ def markdown_to_html(md_text: str, level: int = 0) -> str:
     )
 
 
-def _add_macos_library_path() -> None:
-    """macOS: Homebrew로 설치한 Pango 등을 WeasyPrint가 찾도록 경로를 추가한다.
-
-    WeasyPrint는 라이브러리를 이름으로 찾으므로(ctypes find_library), 실행 중인
-    프로세스의 DYLD_FALLBACK_LIBRARY_PATH에 Homebrew 경로가 있어야 한다.
-    """
-    if sys.platform != "darwin":
-        return
-    current = os.environ.get("DYLD_FALLBACK_LIBRARY_PATH", "")
-    paths = [p for p in current.split(":") if p]
-    for lib_dir in ("/opt/homebrew/lib", "/usr/local/lib"):
-        if Path(lib_dir).is_dir() and lib_dir not in paths:
-            paths.append(lib_dir)
-    os.environ["DYLD_FALLBACK_LIBRARY_PATH"] = ":".join(paths)
+def _add_library_paths() -> None:
+    """macOS 및 Windows에서 WeasyPrint가 Pango C 라이브러리를 찾도록 경로 등록."""
+    if sys.platform == "darwin":
+        current = os.environ.get("DYLD_FALLBACK_LIBRARY_PATH", "")
+        paths = [p for p in current.split(":") if p]
+        for lib_dir in ("/opt/homebrew/lib", "/usr/local/lib"):
+            if Path(lib_dir).is_dir() and lib_dir not in paths:
+                paths.append(lib_dir)
+        os.environ["DYLD_FALLBACK_LIBRARY_PATH"] = ":".join(paths)
+    elif sys.platform == "win32":
+        # Windows: GTK3 런타임 bin 디렉터리 등록
+        for gtk_dir in (
+            r"C:\Program Files\GTK3-Runtime Win64\bin",
+            r"C:\Program Files\GTK3-Runtime\bin",
+        ):
+            if Path(gtk_dir).is_dir():
+                try:
+                    os.add_dll_directory(gtk_dir)
+                except (AttributeError, OSError):
+                    pass
 
 
 def render_pdf(md_text: str, level: int = 0) -> tuple[bytes, int]:
     """PDF 바이트와 쪽수. WeasyPrint는 호출 시점에만 import한다."""
-    _add_macos_library_path()
+    _add_library_paths()
     from weasyprint import HTML
 
     document = HTML(string=markdown_to_html(md_text, level)).render()
