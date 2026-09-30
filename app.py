@@ -34,6 +34,11 @@ def main() -> None:
     parser.add_argument("--agent", choices=AGENTS, help="개발 중인 에이전트만 실행")
     parser.add_argument("--state", type=Path, help="개별 실행에 필요한 샘플 State JSON")
     parser.add_argument("--max-candidates", type=int, help="최대 후보 수 (기본값: 15)")
+    parser.add_argument(
+        "--report-only",
+        type=Path,
+        help="저장된 outputs/run_state.json으로 보고서만 다시 생성",
+    )
     args = parser.parse_args()
 
     # 실행 옵션 > 환경변수(.env 포함) > 기본값. 0은 기본값으로 대체하지 않는다.
@@ -52,6 +57,20 @@ def main() -> None:
     # 샘플 State보다 이번 실행에서 지정한 후보 상한을 우선한다.
     state["max_candidates"] = max_candidates
     execution_config = {"recursion_limit": calculate_recursion_limit(max_candidates)}
+
+    if args.report_only:
+        # 에이전트를 다시 돌리지 않고 저장된 실행 기록으로 보고서만 다시 만든다.
+        from src.agents.agent6_report import report_writer
+
+        saved = json.loads(args.report_only.read_text(encoding="utf-8"))
+        state.update(
+            {
+                "evaluation_history": saved.get("evaluation_history") or [],
+                "references": saved.get("references") or [],
+            }
+        )
+        report_writer(state)
+        return
 
     if args.agent:
         module_name, function_name = AGENTS[args.agent]
@@ -84,6 +103,7 @@ def main() -> None:
     run_state = {
         "candidate_startups": result.get("candidate_startups") or [],
         "evaluation_history": history,
+        "references": result.get("references") or [],
     }
     (out_dir / "run_state.json").write_text(
         json.dumps(run_state, ensure_ascii=False, indent=2, default=str),

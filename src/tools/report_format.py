@@ -249,6 +249,36 @@ def collect_references(
     return list(merged.values())
 
 
+def collect_report_references(
+    records: Iterable[EvaluationRecord],
+    focus: EvaluationRecord | None,
+    state_references: Iterable[Reference],
+) -> list[dict]:
+    """보고서 전체에 반영된 출처.
+
+    - 순위표·판정 사유에 나온 모든 기업의 점수 근거(question_evidence) 출처
+    - 상세 분석 대상 기업(focus)의 표시 항목·분석 글(기술·시장·경쟁) 출처
+    """
+    state_references = list(state_references)
+    pool: list[dict] = []
+    if focus is not None:
+        pool.extend(collect_references(focus, state_references, analyses=True))
+    for record in records:
+        for evidence in (record.get("question_evidence") or {}).values():
+            pool.extend(evidence.get("references") or [])
+    merged: dict[tuple, dict] = {}
+    for ref in pool:
+        key = _ref_key(ref)
+        item = merged.setdefault(key, {**ref, "cited_pages": []})
+        pages = list(ref.get("cited_pages") or [])
+        if ref.get("page") not in (None, ""):
+            pages.append(str(ref["page"]))
+        for page in pages:
+            if page not in item["cited_pages"]:
+                item["cited_pages"].append(page)
+    return list(merged.values())
+
+
 def _v(value) -> str:
     return UNKNOWN if value in (None, "", []) else str(value)
 

@@ -28,7 +28,7 @@ from src.tools.report_format import (
     AREA_QUESTIONS,
     GATE_LABELS,
     QUESTION_LABELS,
-    collect_references,
+    collect_report_references,
     fmt_money,
     fmt_percent,
     fmt_score,
@@ -706,6 +706,9 @@ def _no_pass_payload(record: EvaluationRecord) -> dict:
             for q, e in evidence.items()
             if not e.get("missing")
         },
+        "tech_analysis": (record.get("tech_analysis") or "")[:1500],
+        "market_analysis": (record.get("market_analysis") or "")[:1500],
+        "competitor_analysis": (record.get("competitor_analysis") or "")[:1500],
     }
 
 
@@ -820,14 +823,16 @@ def report_writer(state: InvestmentState) -> ReportUpdate:
         build = lambda limit: _build_empty_report(state, keyword)
     elif passed:
         recommended = passed[0]
-        refs = collect_references(recommended, state.get("references") or [])
+        refs = collect_report_references(
+            records, recommended, state.get("references") or []
+        )
         draft, judge_log = _write_detail(recommended)
         build = lambda limit: _build_pass_report(
             records, ranked, recommended, draft, refs, limit, keyword
         )
     else:
         top = ranked[0][2]
-        refs = collect_references(top, state.get("references") or [], analyses=False)
+        refs = collect_report_references(records, top, state.get("references") or [])
         payload = {
             "candidates": [
                 {
@@ -844,7 +849,7 @@ def report_writer(state: InvestmentState) -> ReportUpdate:
             NoPassDraft,
             payload,
             "통과 기업이 0곳이다. 투자 기업을 추천하지 말고, 보류 사유를 근거로 핵심 이유 2~3문장, "
-            "최고점 후보의 미달 원인, 재검토 조건을 작성하라. 영역별·질문별 점수는 쓰지 않는다.",
+            "최고점 후보의 미달 원인(분석 글의 기술·시장·경쟁 근거를 구체적으로 인용), 재검토 조건을 작성하라. 영역별·질문별 점수는 쓰지 않는다.",
             SECTION_CHAR_LIMITS[0],
         ) or NoPassDraft(
             summary_reasons=[
