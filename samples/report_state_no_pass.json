@@ -1,0 +1,1422 @@
+{
+  "input_keyword": "AI 신약개발 스타트업",
+  "evaluation_history": [
+    {
+      "name": "가상 테라퓨틱스 C",
+      "total": 59.0,
+      "area_scores": {
+        "founder": 60.0,
+        "market": 60.0,
+        "product": 60.0,
+        "moat": 50.0,
+        "traction": 60.0,
+        "deal": 60.0
+      },
+      "question_scores": {
+        "QA": 4,
+        "QB": 3,
+        "QC": 2,
+        "QD": 3,
+        "QE": 3,
+        "QF": 3,
+        "QG": 3,
+        "QH": 3,
+        "QI": 3,
+        "QJ": 2,
+        "QK": 3,
+        "QL": 3,
+        "QM": 3,
+        "QN": 3,
+        "QO": 3
+      },
+      "question_evidence": {
+        "QA": {
+          "score": 4,
+          "rationale": "[가상 예시] QA 기준표에 따라 4점을 부여했다.",
+          "references": [
+            {
+              "company": "가상 테라퓨틱스 C",
+              "agent": "profile",
+              "title": "[가상 예시] 가상 테라퓨틱스 C IR 자료",
+              "source": "web",
+              "issuer": "가상 테라퓨틱스 C 홈페이지",
+              "year": 2026,
+              "doc_type": "web",
+              "page": null,
+              "url": "https://example.invalid/company-c/ir",
+              "authors": null,
+              "published_date": "2026-06-15",
+              "site_name": "가상 테라퓨틱스 C 홈페이지",
+              "journal": null,
+              "volume": null,
+              "issue": null,
+              "pages": null
+            }
+          ],
+          "missing": false
+        },
+        "QB": {
+          "score": 3,
+          "rationale": "[가상 예시] QB 기준표에 따라 3점을 부여했다.",
+          "references": [
+            {
+              "company": "가상 테라퓨틱스 C",
+              "agent": "profile",
+              "title": "[가상 예시] 가상 테라퓨틱스 C IR 자료",
+              "source": "web",
+              "issuer": "가상 테라퓨틱스 C 홈페이지",
+              "year": 2026,
+              "doc_type": "web",
+              "page": null,
+              "url": "https://example.invalid/company-c/ir",
+              "authors": null,
+              "published_date": "2026-06-15",
+              "site_name": "가상 테라퓨틱스 C 홈페이지",
+              "journal": null,
+              "volume": null,
+              "issue": null,
+              "pages": null
+            }
+          ],
+          "missing": false
+        },
+        "QC": {
+          "score": 2,
+          "rationale": "[가상 예시] QC 기준표에 따라 2점을 부여했다.",
+          "references": [
+            {
+              "company": "가상 테라퓨틱스 C",
+              "agent": "profile",
+              "title": "[가상 예시] 가상 테라퓨틱스 C IR 자료",
+              "source": "web",
+              "issuer": "가상 테라퓨틱스 C 홈페이지",
+              "year": 2026,
+              "doc_type": "web",
+              "page": null,
+              "url": "https://example.invalid/company-c/ir",
+              "authors": null,
+              "published_date": "2026-06-15",
+              "site_name": "가상 테라퓨틱스 C 홈페이지",
+              "journal": null,
+              "volume": null,
+              "issue": null,
+              "pages": null
+            }
+          ],
+          "missing": false
+        },
+        "QD": {
+          "score": 3,
+          "rationale": "[가상 예시] QD 기준표에 따라 3점을 부여했다.",
+          "references": [
+            {
+              "company": "가상 테라퓨틱스 C",
+              "agent": "profile",
+              "title": "[가상 예시] 가상 테라퓨틱스 C IR 자료",
+              "source": "web",
+              "issuer": "가상 테라퓨틱스 C 홈페이지",
+              "year": 2026,
+              "doc_type": "web",
+              "page": null,
+              "url": "https://example.invalid/company-c/ir",
+              "authors": null,
+              "published_date": "2026-06-15",
+              "site_name": "가상 테라퓨틱스 C 홈페이지",
+              "journal": null,
+              "volume": null,
+              "issue": null,
+              "pages": null
+            }
+          ],
+          "missing": false
+        },
+        "QE": {
+          "score": 3,
+          "rationale": "[가상 예시] QE 기준표에 따라 3점을 부여했다.",
+          "references": [
+            {
+              "company": "가상 테라퓨틱스 C",
+              "agent": "profile",
+              "title": "[가상 예시] 가상 테라퓨틱스 C IR 자료",
+              "source": "web",
+              "issuer": "가상 테라퓨틱스 C 홈페이지",
+              "year": 2026,
+              "doc_type": "web",
+              "page": null,
+              "url": "https://example.invalid/company-c/ir",
+              "authors": null,
+              "published_date": "2026-06-15",
+              "site_name": "가상 테라퓨틱스 C 홈페이지",
+              "journal": null,
+              "volume": null,
+              "issue": null,
+              "pages": null
+            }
+          ],
+          "missing": false
+        },
+        "QF": {
+          "score": 3,
+          "rationale": "[가상 예시] QF 기준표에 따라 3점을 부여했다.",
+          "references": [
+            {
+              "company": "가상 테라퓨틱스 C",
+              "agent": "profile",
+              "title": "[가상 예시] 가상 테라퓨틱스 C IR 자료",
+              "source": "web",
+              "issuer": "가상 테라퓨틱스 C 홈페이지",
+              "year": 2026,
+              "doc_type": "web",
+              "page": null,
+              "url": "https://example.invalid/company-c/ir",
+              "authors": null,
+              "published_date": "2026-06-15",
+              "site_name": "가상 테라퓨틱스 C 홈페이지",
+              "journal": null,
+              "volume": null,
+              "issue": null,
+              "pages": null
+            }
+          ],
+          "missing": false
+        },
+        "QG": {
+          "score": 3,
+          "rationale": "[가상 예시] QG 기준표에 따라 3점을 부여했다.",
+          "references": [
+            {
+              "company": "가상 테라퓨틱스 C",
+              "agent": "profile",
+              "title": "[가상 예시] 가상 테라퓨틱스 C IR 자료",
+              "source": "web",
+              "issuer": "가상 테라퓨틱스 C 홈페이지",
+              "year": 2026,
+              "doc_type": "web",
+              "page": null,
+              "url": "https://example.invalid/company-c/ir",
+              "authors": null,
+              "published_date": "2026-06-15",
+              "site_name": "가상 테라퓨틱스 C 홈페이지",
+              "journal": null,
+              "volume": null,
+              "issue": null,
+              "pages": null
+            }
+          ],
+          "missing": false
+        },
+        "QH": {
+          "score": 3,
+          "rationale": "[가상 예시] QH 기준표에 따라 3점을 부여했다.",
+          "references": [
+            {
+              "company": "가상 테라퓨틱스 C",
+              "agent": "profile",
+              "title": "[가상 예시] 가상 테라퓨틱스 C IR 자료",
+              "source": "web",
+              "issuer": "가상 테라퓨틱스 C 홈페이지",
+              "year": 2026,
+              "doc_type": "web",
+              "page": null,
+              "url": "https://example.invalid/company-c/ir",
+              "authors": null,
+              "published_date": "2026-06-15",
+              "site_name": "가상 테라퓨틱스 C 홈페이지",
+              "journal": null,
+              "volume": null,
+              "issue": null,
+              "pages": null
+            }
+          ],
+          "missing": false
+        },
+        "QI": {
+          "score": 3,
+          "rationale": "[가상 예시] QI 기준표에 따라 3점을 부여했다.",
+          "references": [
+            {
+              "company": "가상 테라퓨틱스 C",
+              "agent": "profile",
+              "title": "[가상 예시] 가상 테라퓨틱스 C IR 자료",
+              "source": "web",
+              "issuer": "가상 테라퓨틱스 C 홈페이지",
+              "year": 2026,
+              "doc_type": "web",
+              "page": null,
+              "url": "https://example.invalid/company-c/ir",
+              "authors": null,
+              "published_date": "2026-06-15",
+              "site_name": "가상 테라퓨틱스 C 홈페이지",
+              "journal": null,
+              "volume": null,
+              "issue": null,
+              "pages": null
+            }
+          ],
+          "missing": false
+        },
+        "QJ": {
+          "score": 2,
+          "rationale": "[가상 예시] QJ 기준표에 따라 2점을 부여했다.",
+          "references": [
+            {
+              "company": "가상 테라퓨틱스 C",
+              "agent": "profile",
+              "title": "[가상 예시] 가상 테라퓨틱스 C IR 자료",
+              "source": "web",
+              "issuer": "가상 테라퓨틱스 C 홈페이지",
+              "year": 2026,
+              "doc_type": "web",
+              "page": null,
+              "url": "https://example.invalid/company-c/ir",
+              "authors": null,
+              "published_date": "2026-06-15",
+              "site_name": "가상 테라퓨틱스 C 홈페이지",
+              "journal": null,
+              "volume": null,
+              "issue": null,
+              "pages": null
+            }
+          ],
+          "missing": false
+        },
+        "QK": {
+          "score": 3,
+          "rationale": "[가상 예시] QK 기준표에 따라 3점을 부여했다.",
+          "references": [
+            {
+              "company": "가상 테라퓨틱스 C",
+              "agent": "profile",
+              "title": "[가상 예시] 가상 테라퓨틱스 C IR 자료",
+              "source": "web",
+              "issuer": "가상 테라퓨틱스 C 홈페이지",
+              "year": 2026,
+              "doc_type": "web",
+              "page": null,
+              "url": "https://example.invalid/company-c/ir",
+              "authors": null,
+              "published_date": "2026-06-15",
+              "site_name": "가상 테라퓨틱스 C 홈페이지",
+              "journal": null,
+              "volume": null,
+              "issue": null,
+              "pages": null
+            }
+          ],
+          "missing": false
+        },
+        "QL": {
+          "score": 3,
+          "rationale": "[가상 예시] QL 기준표에 따라 3점을 부여했다.",
+          "references": [
+            {
+              "company": "가상 테라퓨틱스 C",
+              "agent": "profile",
+              "title": "[가상 예시] 가상 테라퓨틱스 C IR 자료",
+              "source": "web",
+              "issuer": "가상 테라퓨틱스 C 홈페이지",
+              "year": 2026,
+              "doc_type": "web",
+              "page": null,
+              "url": "https://example.invalid/company-c/ir",
+              "authors": null,
+              "published_date": "2026-06-15",
+              "site_name": "가상 테라퓨틱스 C 홈페이지",
+              "journal": null,
+              "volume": null,
+              "issue": null,
+              "pages": null
+            }
+          ],
+          "missing": false
+        },
+        "QM": {
+          "score": 3,
+          "rationale": "[가상 예시] QM 기준표에 따라 3점을 부여했다.",
+          "references": [
+            {
+              "company": "가상 테라퓨틱스 C",
+              "agent": "profile",
+              "title": "[가상 예시] 가상 테라퓨틱스 C IR 자료",
+              "source": "web",
+              "issuer": "가상 테라퓨틱스 C 홈페이지",
+              "year": 2026,
+              "doc_type": "web",
+              "page": null,
+              "url": "https://example.invalid/company-c/ir",
+              "authors": null,
+              "published_date": "2026-06-15",
+              "site_name": "가상 테라퓨틱스 C 홈페이지",
+              "journal": null,
+              "volume": null,
+              "issue": null,
+              "pages": null
+            }
+          ],
+          "missing": false
+        },
+        "QN": {
+          "score": 3,
+          "rationale": "[가상 예시] QN 기준표에 따라 3점을 부여했다.",
+          "references": [
+            {
+              "company": "가상 테라퓨틱스 C",
+              "agent": "profile",
+              "title": "[가상 예시] 가상 테라퓨틱스 C IR 자료",
+              "source": "web",
+              "issuer": "가상 테라퓨틱스 C 홈페이지",
+              "year": 2026,
+              "doc_type": "web",
+              "page": null,
+              "url": "https://example.invalid/company-c/ir",
+              "authors": null,
+              "published_date": "2026-06-15",
+              "site_name": "가상 테라퓨틱스 C 홈페이지",
+              "journal": null,
+              "volume": null,
+              "issue": null,
+              "pages": null
+            }
+          ],
+          "missing": false
+        },
+        "QO": {
+          "score": 3,
+          "rationale": "[가상 예시] QO 기준표에 따라 3점을 부여했다.",
+          "references": [
+            {
+              "company": "가상 테라퓨틱스 C",
+              "agent": "profile",
+              "title": "[가상 예시] 가상 테라퓨틱스 C IR 자료",
+              "source": "web",
+              "issuer": "가상 테라퓨틱스 C 홈페이지",
+              "year": 2026,
+              "doc_type": "web",
+              "page": null,
+              "url": "https://example.invalid/company-c/ir",
+              "authors": null,
+              "published_date": "2026-06-15",
+              "site_name": "가상 테라퓨틱스 C 홈페이지",
+              "journal": null,
+              "volume": null,
+              "issue": null,
+              "pages": null
+            }
+          ],
+          "missing": false
+        }
+      },
+      "verdict": "보류",
+      "hold_reason": "총점 미달",
+      "unconfirmed_gates": [],
+      "missing_weight": 0.0,
+      "rationale": "[가상 예시] 가상 테라퓨틱스 C 판정 요약",
+      "startup_profile": {
+        "name": "가상 테라퓨틱스 C",
+        "gates": {
+          "not_eligible": false,
+          "subsidiary_of_large_corp": false,
+          "clinical_failure": false,
+          "founder_exit_or_dispute": false,
+          "patent_loss": false,
+          "funding_gap_restructuring": false
+        },
+        "missing_fields": [],
+        "founded_year": 2019,
+        "platform": "[가상 예시] AI 기반 신약 후보물질 설계 플랫폼",
+        "pipeline": null,
+        "funding_history": null,
+        "partnerships": null,
+        "team": null,
+        "founder_degree_career": null,
+        "ceo_full_time": true,
+        "upfront_payment": null,
+        "upfront_payment_basis": null,
+        "pre_money_valuation": null,
+        "valuation_date": null,
+        "valuation_references": [],
+        "lead_indication": null,
+        "lead_service": null,
+        "business_model": "pipeline",
+        "business_model_basis": {
+          "reason": "[가상 예시] 가상 테라퓨틱스 C 사업 모델 근거",
+          "source": "https://example.invalid/company-c/ir"
+        }
+      },
+      "tech_analysis": "[가상 예시] 가상 테라퓨틱스 C의 플랫폼은 자체 학습 데이터로 후보물질을 설계한다. AI 발굴 물질의 임상 1상 성공률은 80~90%로 보고됐으나 2상은 업계 평균 수준이다(Jayatunga 외, 2024). 규제 측면에서는 AI 모델 검증 자료 제출 요구가 늘고 있다(식품의약품안전평가원, 2026).",
+      "market_analysis": "[가상 예시] 대표 적응증 시장은 치료 영역 기준 수치를 사용했다(KBIOIS Vol.95). 제약사의 AI 파트너십 수요가 늘고 있어 기술이전 기회가 크다.",
+      "competitor_analysis": "[가상 예시] 동종 AI 신약 스타트업 대비 임상 단계가 앞서 있으나, 빅테크의 단백질 구조 예측 모델과 기술 격차는 제한적이다. 자체 실험 데이터가 진입장벽이다."
+    },
+    {
+      "name": "가상 디스커버리 D",
+      "total": 53.33333333333333,
+      "area_scores": {
+        "founder": 66.66666666666667,
+        "market": 46.666666666666664,
+        "product": 40.0,
+        "moat": 50.0,
+        "traction": 46.666666666666664,
+        "deal": 60.0
+      },
+      "question_scores": {
+        "QA": 4,
+        "QB": 4,
+        "QC": 2,
+        "QD": 2,
+        "QE": 2,
+        "QF": 3,
+        "QG": 2,
+        "QH": 2,
+        "QI": 3,
+        "QJ": 2,
+        "QK": 2,
+        "QL": 2,
+        "QM": 3,
+        "QN": 3,
+        "QO": 3
+      },
+      "question_evidence": {
+        "QA": {
+          "score": 4,
+          "rationale": "[가상 예시] QA 기준표에 따라 4점을 부여했다.",
+          "references": [
+            {
+              "company": "가상 디스커버리 D",
+              "agent": "profile",
+              "title": "[가상 예시] 가상 디스커버리 D IR 자료",
+              "source": "web",
+              "issuer": "가상 디스커버리 D 홈페이지",
+              "year": 2026,
+              "doc_type": "web",
+              "page": null,
+              "url": "https://example.invalid/company-d/ir",
+              "authors": null,
+              "published_date": "2026-06-15",
+              "site_name": "가상 디스커버리 D 홈페이지",
+              "journal": null,
+              "volume": null,
+              "issue": null,
+              "pages": null
+            }
+          ],
+          "missing": false
+        },
+        "QB": {
+          "score": 4,
+          "rationale": "[가상 예시] QB 기준표에 따라 4점을 부여했다.",
+          "references": [
+            {
+              "company": "가상 디스커버리 D",
+              "agent": "profile",
+              "title": "[가상 예시] 가상 디스커버리 D IR 자료",
+              "source": "web",
+              "issuer": "가상 디스커버리 D 홈페이지",
+              "year": 2026,
+              "doc_type": "web",
+              "page": null,
+              "url": "https://example.invalid/company-d/ir",
+              "authors": null,
+              "published_date": "2026-06-15",
+              "site_name": "가상 디스커버리 D 홈페이지",
+              "journal": null,
+              "volume": null,
+              "issue": null,
+              "pages": null
+            }
+          ],
+          "missing": false
+        },
+        "QC": {
+          "score": 2,
+          "rationale": "[가상 예시] 해당 질문의 근거가 확인되지 않아 결측 처리했다.",
+          "references": [],
+          "missing": true
+        },
+        "QD": {
+          "score": 2,
+          "rationale": "[가상 예시] 해당 질문의 근거가 확인되지 않아 결측 처리했다.",
+          "references": [],
+          "missing": true
+        },
+        "QE": {
+          "score": 2,
+          "rationale": "[가상 예시] 해당 질문의 근거가 확인되지 않아 결측 처리했다.",
+          "references": [],
+          "missing": true
+        },
+        "QF": {
+          "score": 3,
+          "rationale": "[가상 예시] QF 기준표에 따라 3점을 부여했다.",
+          "references": [
+            {
+              "company": "가상 디스커버리 D",
+              "agent": "profile",
+              "title": "[가상 예시] 가상 디스커버리 D IR 자료",
+              "source": "web",
+              "issuer": "가상 디스커버리 D 홈페이지",
+              "year": 2026,
+              "doc_type": "web",
+              "page": null,
+              "url": "https://example.invalid/company-d/ir",
+              "authors": null,
+              "published_date": "2026-06-15",
+              "site_name": "가상 디스커버리 D 홈페이지",
+              "journal": null,
+              "volume": null,
+              "issue": null,
+              "pages": null
+            }
+          ],
+          "missing": false
+        },
+        "QG": {
+          "score": 2,
+          "rationale": "[가상 예시] 해당 질문의 근거가 확인되지 않아 결측 처리했다.",
+          "references": [],
+          "missing": true
+        },
+        "QH": {
+          "score": 2,
+          "rationale": "[가상 예시] 해당 질문의 근거가 확인되지 않아 결측 처리했다.",
+          "references": [],
+          "missing": true
+        },
+        "QI": {
+          "score": 3,
+          "rationale": "[가상 예시] QI 기준표에 따라 3점을 부여했다.",
+          "references": [
+            {
+              "company": "가상 디스커버리 D",
+              "agent": "profile",
+              "title": "[가상 예시] 가상 디스커버리 D IR 자료",
+              "source": "web",
+              "issuer": "가상 디스커버리 D 홈페이지",
+              "year": 2026,
+              "doc_type": "web",
+              "page": null,
+              "url": "https://example.invalid/company-d/ir",
+              "authors": null,
+              "published_date": "2026-06-15",
+              "site_name": "가상 디스커버리 D 홈페이지",
+              "journal": null,
+              "volume": null,
+              "issue": null,
+              "pages": null
+            }
+          ],
+          "missing": false
+        },
+        "QJ": {
+          "score": 2,
+          "rationale": "[가상 예시] QJ 기준표에 따라 2점을 부여했다.",
+          "references": [
+            {
+              "company": "가상 디스커버리 D",
+              "agent": "profile",
+              "title": "[가상 예시] 가상 디스커버리 D IR 자료",
+              "source": "web",
+              "issuer": "가상 디스커버리 D 홈페이지",
+              "year": 2026,
+              "doc_type": "web",
+              "page": null,
+              "url": "https://example.invalid/company-d/ir",
+              "authors": null,
+              "published_date": "2026-06-15",
+              "site_name": "가상 디스커버리 D 홈페이지",
+              "journal": null,
+              "volume": null,
+              "issue": null,
+              "pages": null
+            }
+          ],
+          "missing": false
+        },
+        "QK": {
+          "score": 2,
+          "rationale": "[가상 예시] QK 기준표에 따라 2점을 부여했다.",
+          "references": [
+            {
+              "company": "가상 디스커버리 D",
+              "agent": "profile",
+              "title": "[가상 예시] 가상 디스커버리 D IR 자료",
+              "source": "web",
+              "issuer": "가상 디스커버리 D 홈페이지",
+              "year": 2026,
+              "doc_type": "web",
+              "page": null,
+              "url": "https://example.invalid/company-d/ir",
+              "authors": null,
+              "published_date": "2026-06-15",
+              "site_name": "가상 디스커버리 D 홈페이지",
+              "journal": null,
+              "volume": null,
+              "issue": null,
+              "pages": null
+            }
+          ],
+          "missing": false
+        },
+        "QL": {
+          "score": 2,
+          "rationale": "[가상 예시] QL 기준표에 따라 2점을 부여했다.",
+          "references": [
+            {
+              "company": "가상 디스커버리 D",
+              "agent": "profile",
+              "title": "[가상 예시] 가상 디스커버리 D IR 자료",
+              "source": "web",
+              "issuer": "가상 디스커버리 D 홈페이지",
+              "year": 2026,
+              "doc_type": "web",
+              "page": null,
+              "url": "https://example.invalid/company-d/ir",
+              "authors": null,
+              "published_date": "2026-06-15",
+              "site_name": "가상 디스커버리 D 홈페이지",
+              "journal": null,
+              "volume": null,
+              "issue": null,
+              "pages": null
+            }
+          ],
+          "missing": false
+        },
+        "QM": {
+          "score": 3,
+          "rationale": "[가상 예시] QM 기준표에 따라 3점을 부여했다.",
+          "references": [
+            {
+              "company": "가상 디스커버리 D",
+              "agent": "profile",
+              "title": "[가상 예시] 가상 디스커버리 D IR 자료",
+              "source": "web",
+              "issuer": "가상 디스커버리 D 홈페이지",
+              "year": 2026,
+              "doc_type": "web",
+              "page": null,
+              "url": "https://example.invalid/company-d/ir",
+              "authors": null,
+              "published_date": "2026-06-15",
+              "site_name": "가상 디스커버리 D 홈페이지",
+              "journal": null,
+              "volume": null,
+              "issue": null,
+              "pages": null
+            }
+          ],
+          "missing": false
+        },
+        "QN": {
+          "score": 3,
+          "rationale": "[가상 예시] 해당 질문의 근거가 확인되지 않아 결측 처리했다.",
+          "references": [],
+          "missing": true
+        },
+        "QO": {
+          "score": 3,
+          "rationale": "[가상 예시] 해당 질문의 근거가 확인되지 않아 결측 처리했다.",
+          "references": [],
+          "missing": true
+        }
+      },
+      "verdict": "보류",
+      "hold_reason": "근거 부족",
+      "unconfirmed_gates": [],
+      "missing_weight": 0.5166666666666666,
+      "rationale": "[가상 예시] 가상 디스커버리 D 판정 요약",
+      "startup_profile": {
+        "name": "가상 디스커버리 D",
+        "gates": {
+          "not_eligible": false,
+          "subsidiary_of_large_corp": false,
+          "clinical_failure": false,
+          "founder_exit_or_dispute": false,
+          "patent_loss": false,
+          "funding_gap_restructuring": false
+        },
+        "missing_fields": [],
+        "founded_year": 2019,
+        "platform": "[가상 예시] AI 기반 신약 후보물질 설계 플랫폼",
+        "pipeline": null,
+        "funding_history": null,
+        "partnerships": null,
+        "team": null,
+        "founder_degree_career": null,
+        "ceo_full_time": true,
+        "upfront_payment": null,
+        "upfront_payment_basis": null,
+        "pre_money_valuation": null,
+        "valuation_date": null,
+        "valuation_references": [],
+        "lead_indication": null,
+        "lead_service": null,
+        "business_model": "unknown",
+        "business_model_basis": {
+          "reason": "[가상 예시] 가상 디스커버리 D 사업 모델 근거",
+          "source": "https://example.invalid/company-d/ir"
+        }
+      },
+      "tech_analysis": "[가상 예시] 가상 디스커버리 D의 플랫폼은 자체 학습 데이터로 후보물질을 설계한다. AI 발굴 물질의 임상 1상 성공률은 80~90%로 보고됐으나 2상은 업계 평균 수준이다(Jayatunga 외, 2024). 규제 측면에서는 AI 모델 검증 자료 제출 요구가 늘고 있다(식품의약품안전평가원, 2026).",
+      "market_analysis": "[가상 예시] 대표 적응증 시장은 치료 영역 기준 수치를 사용했다(KBIOIS Vol.95). 제약사의 AI 파트너십 수요가 늘고 있어 기술이전 기회가 크다.",
+      "competitor_analysis": "[가상 예시] 동종 AI 신약 스타트업 대비 임상 단계가 앞서 있으나, 빅테크의 단백질 구조 예측 모델과 기술 격차는 제한적이다. 자체 실험 데이터가 진입장벽이다."
+    },
+    {
+      "name": "가상 랩스 E",
+      "total": 82.0,
+      "area_scores": {
+        "founder": 93.33333333333333,
+        "market": 80.0,
+        "product": 80.0,
+        "moat": 80.0,
+        "traction": 80.0,
+        "deal": 60.0
+      },
+      "question_scores": {
+        "QA": 5,
+        "QB": 5,
+        "QC": 4,
+        "QD": 4,
+        "QE": 4,
+        "QF": 4,
+        "QG": 4,
+        "QH": 4,
+        "QI": 4,
+        "QJ": 4,
+        "QK": 4,
+        "QL": 4,
+        "QM": 4,
+        "QN": 3,
+        "QO": 3
+      },
+      "question_evidence": {
+        "QA": {
+          "score": 5,
+          "rationale": "[가상 예시] QA 기준표에 따라 5점을 부여했다.",
+          "references": [
+            {
+              "company": "가상 랩스 E",
+              "agent": "profile",
+              "title": "[가상 예시] 가상 랩스 E IR 자료",
+              "source": "web",
+              "issuer": "가상 랩스 E 홈페이지",
+              "year": 2026,
+              "doc_type": "web",
+              "page": null,
+              "url": "https://example.invalid/company-e/ir",
+              "authors": null,
+              "published_date": "2026-06-15",
+              "site_name": "가상 랩스 E 홈페이지",
+              "journal": null,
+              "volume": null,
+              "issue": null,
+              "pages": null
+            }
+          ],
+          "missing": false
+        },
+        "QB": {
+          "score": 5,
+          "rationale": "[가상 예시] QB 기준표에 따라 5점을 부여했다.",
+          "references": [
+            {
+              "company": "가상 랩스 E",
+              "agent": "profile",
+              "title": "[가상 예시] 가상 랩스 E IR 자료",
+              "source": "web",
+              "issuer": "가상 랩스 E 홈페이지",
+              "year": 2026,
+              "doc_type": "web",
+              "page": null,
+              "url": "https://example.invalid/company-e/ir",
+              "authors": null,
+              "published_date": "2026-06-15",
+              "site_name": "가상 랩스 E 홈페이지",
+              "journal": null,
+              "volume": null,
+              "issue": null,
+              "pages": null
+            }
+          ],
+          "missing": false
+        },
+        "QC": {
+          "score": 4,
+          "rationale": "[가상 예시] QC 기준표에 따라 4점을 부여했다.",
+          "references": [
+            {
+              "company": "가상 랩스 E",
+              "agent": "profile",
+              "title": "[가상 예시] 가상 랩스 E IR 자료",
+              "source": "web",
+              "issuer": "가상 랩스 E 홈페이지",
+              "year": 2026,
+              "doc_type": "web",
+              "page": null,
+              "url": "https://example.invalid/company-e/ir",
+              "authors": null,
+              "published_date": "2026-06-15",
+              "site_name": "가상 랩스 E 홈페이지",
+              "journal": null,
+              "volume": null,
+              "issue": null,
+              "pages": null
+            }
+          ],
+          "missing": false
+        },
+        "QD": {
+          "score": 4,
+          "rationale": "[가상 예시] QD 기준표에 따라 4점을 부여했다.",
+          "references": [
+            {
+              "company": "가상 랩스 E",
+              "agent": "profile",
+              "title": "[가상 예시] 가상 랩스 E IR 자료",
+              "source": "web",
+              "issuer": "가상 랩스 E 홈페이지",
+              "year": 2026,
+              "doc_type": "web",
+              "page": null,
+              "url": "https://example.invalid/company-e/ir",
+              "authors": null,
+              "published_date": "2026-06-15",
+              "site_name": "가상 랩스 E 홈페이지",
+              "journal": null,
+              "volume": null,
+              "issue": null,
+              "pages": null
+            }
+          ],
+          "missing": false
+        },
+        "QE": {
+          "score": 4,
+          "rationale": "[가상 예시] QE 기준표에 따라 4점을 부여했다.",
+          "references": [
+            {
+              "company": "가상 랩스 E",
+              "agent": "profile",
+              "title": "[가상 예시] 가상 랩스 E IR 자료",
+              "source": "web",
+              "issuer": "가상 랩스 E 홈페이지",
+              "year": 2026,
+              "doc_type": "web",
+              "page": null,
+              "url": "https://example.invalid/company-e/ir",
+              "authors": null,
+              "published_date": "2026-06-15",
+              "site_name": "가상 랩스 E 홈페이지",
+              "journal": null,
+              "volume": null,
+              "issue": null,
+              "pages": null
+            }
+          ],
+          "missing": false
+        },
+        "QF": {
+          "score": 4,
+          "rationale": "[가상 예시] QF 기준표에 따라 4점을 부여했다.",
+          "references": [
+            {
+              "company": "가상 랩스 E",
+              "agent": "profile",
+              "title": "[가상 예시] 가상 랩스 E IR 자료",
+              "source": "web",
+              "issuer": "가상 랩스 E 홈페이지",
+              "year": 2026,
+              "doc_type": "web",
+              "page": null,
+              "url": "https://example.invalid/company-e/ir",
+              "authors": null,
+              "published_date": "2026-06-15",
+              "site_name": "가상 랩스 E 홈페이지",
+              "journal": null,
+              "volume": null,
+              "issue": null,
+              "pages": null
+            }
+          ],
+          "missing": false
+        },
+        "QG": {
+          "score": 4,
+          "rationale": "[가상 예시] QG 기준표에 따라 4점을 부여했다.",
+          "references": [
+            {
+              "company": "가상 랩스 E",
+              "agent": "profile",
+              "title": "[가상 예시] 가상 랩스 E IR 자료",
+              "source": "web",
+              "issuer": "가상 랩스 E 홈페이지",
+              "year": 2026,
+              "doc_type": "web",
+              "page": null,
+              "url": "https://example.invalid/company-e/ir",
+              "authors": null,
+              "published_date": "2026-06-15",
+              "site_name": "가상 랩스 E 홈페이지",
+              "journal": null,
+              "volume": null,
+              "issue": null,
+              "pages": null
+            }
+          ],
+          "missing": false
+        },
+        "QH": {
+          "score": 4,
+          "rationale": "[가상 예시] QH 기준표에 따라 4점을 부여했다.",
+          "references": [
+            {
+              "company": "가상 랩스 E",
+              "agent": "profile",
+              "title": "[가상 예시] 가상 랩스 E IR 자료",
+              "source": "web",
+              "issuer": "가상 랩스 E 홈페이지",
+              "year": 2026,
+              "doc_type": "web",
+              "page": null,
+              "url": "https://example.invalid/company-e/ir",
+              "authors": null,
+              "published_date": "2026-06-15",
+              "site_name": "가상 랩스 E 홈페이지",
+              "journal": null,
+              "volume": null,
+              "issue": null,
+              "pages": null
+            }
+          ],
+          "missing": false
+        },
+        "QI": {
+          "score": 4,
+          "rationale": "[가상 예시] QI 기준표에 따라 4점을 부여했다.",
+          "references": [
+            {
+              "company": "가상 랩스 E",
+              "agent": "profile",
+              "title": "[가상 예시] 가상 랩스 E IR 자료",
+              "source": "web",
+              "issuer": "가상 랩스 E 홈페이지",
+              "year": 2026,
+              "doc_type": "web",
+              "page": null,
+              "url": "https://example.invalid/company-e/ir",
+              "authors": null,
+              "published_date": "2026-06-15",
+              "site_name": "가상 랩스 E 홈페이지",
+              "journal": null,
+              "volume": null,
+              "issue": null,
+              "pages": null
+            }
+          ],
+          "missing": false
+        },
+        "QJ": {
+          "score": 4,
+          "rationale": "[가상 예시] QJ 기준표에 따라 4점을 부여했다.",
+          "references": [
+            {
+              "company": "가상 랩스 E",
+              "agent": "profile",
+              "title": "[가상 예시] 가상 랩스 E IR 자료",
+              "source": "web",
+              "issuer": "가상 랩스 E 홈페이지",
+              "year": 2026,
+              "doc_type": "web",
+              "page": null,
+              "url": "https://example.invalid/company-e/ir",
+              "authors": null,
+              "published_date": "2026-06-15",
+              "site_name": "가상 랩스 E 홈페이지",
+              "journal": null,
+              "volume": null,
+              "issue": null,
+              "pages": null
+            }
+          ],
+          "missing": false
+        },
+        "QK": {
+          "score": 4,
+          "rationale": "[가상 예시] QK 기준표에 따라 4점을 부여했다.",
+          "references": [
+            {
+              "company": "가상 랩스 E",
+              "agent": "profile",
+              "title": "[가상 예시] 가상 랩스 E IR 자료",
+              "source": "web",
+              "issuer": "가상 랩스 E 홈페이지",
+              "year": 2026,
+              "doc_type": "web",
+              "page": null,
+              "url": "https://example.invalid/company-e/ir",
+              "authors": null,
+              "published_date": "2026-06-15",
+              "site_name": "가상 랩스 E 홈페이지",
+              "journal": null,
+              "volume": null,
+              "issue": null,
+              "pages": null
+            }
+          ],
+          "missing": false
+        },
+        "QL": {
+          "score": 4,
+          "rationale": "[가상 예시] QL 기준표에 따라 4점을 부여했다.",
+          "references": [
+            {
+              "company": "가상 랩스 E",
+              "agent": "profile",
+              "title": "[가상 예시] 가상 랩스 E IR 자료",
+              "source": "web",
+              "issuer": "가상 랩스 E 홈페이지",
+              "year": 2026,
+              "doc_type": "web",
+              "page": null,
+              "url": "https://example.invalid/company-e/ir",
+              "authors": null,
+              "published_date": "2026-06-15",
+              "site_name": "가상 랩스 E 홈페이지",
+              "journal": null,
+              "volume": null,
+              "issue": null,
+              "pages": null
+            }
+          ],
+          "missing": false
+        },
+        "QM": {
+          "score": 4,
+          "rationale": "[가상 예시] QM 기준표에 따라 4점을 부여했다.",
+          "references": [
+            {
+              "company": "가상 랩스 E",
+              "agent": "profile",
+              "title": "[가상 예시] 가상 랩스 E IR 자료",
+              "source": "web",
+              "issuer": "가상 랩스 E 홈페이지",
+              "year": 2026,
+              "doc_type": "web",
+              "page": null,
+              "url": "https://example.invalid/company-e/ir",
+              "authors": null,
+              "published_date": "2026-06-15",
+              "site_name": "가상 랩스 E 홈페이지",
+              "journal": null,
+              "volume": null,
+              "issue": null,
+              "pages": null
+            }
+          ],
+          "missing": false
+        },
+        "QN": {
+          "score": 3,
+          "rationale": "[가상 예시] QN 기준표에 따라 3점을 부여했다.",
+          "references": [
+            {
+              "company": "가상 랩스 E",
+              "agent": "profile",
+              "title": "[가상 예시] 가상 랩스 E IR 자료",
+              "source": "web",
+              "issuer": "가상 랩스 E 홈페이지",
+              "year": 2026,
+              "doc_type": "web",
+              "page": null,
+              "url": "https://example.invalid/company-e/ir",
+              "authors": null,
+              "published_date": "2026-06-15",
+              "site_name": "가상 랩스 E 홈페이지",
+              "journal": null,
+              "volume": null,
+              "issue": null,
+              "pages": null
+            }
+          ],
+          "missing": false
+        },
+        "QO": {
+          "score": 3,
+          "rationale": "[가상 예시] QO 기준표에 따라 3점을 부여했다.",
+          "references": [
+            {
+              "company": "가상 랩스 E",
+              "agent": "profile",
+              "title": "[가상 예시] 가상 랩스 E IR 자료",
+              "source": "web",
+              "issuer": "가상 랩스 E 홈페이지",
+              "year": 2026,
+              "doc_type": "web",
+              "page": null,
+              "url": "https://example.invalid/company-e/ir",
+              "authors": null,
+              "published_date": "2026-06-15",
+              "site_name": "가상 랩스 E 홈페이지",
+              "journal": null,
+              "volume": null,
+              "issue": null,
+              "pages": null
+            }
+          ],
+          "missing": false
+        }
+      },
+      "verdict": "보류",
+      "hold_reason": "관문(대기업 자회사)",
+      "unconfirmed_gates": [],
+      "missing_weight": 0.0,
+      "rationale": "[가상 예시] 가상 랩스 E 판정 요약",
+      "startup_profile": {
+        "name": "가상 랩스 E",
+        "gates": {
+          "not_eligible": false,
+          "subsidiary_of_large_corp": true,
+          "clinical_failure": false,
+          "founder_exit_or_dispute": false,
+          "patent_loss": false,
+          "funding_gap_restructuring": false
+        },
+        "missing_fields": [],
+        "founded_year": 2019,
+        "platform": "[가상 예시] AI 기반 신약 후보물질 설계 플랫폼",
+        "pipeline": null,
+        "funding_history": null,
+        "partnerships": null,
+        "team": null,
+        "founder_degree_career": null,
+        "ceo_full_time": true,
+        "upfront_payment": null,
+        "upfront_payment_basis": null,
+        "pre_money_valuation": null,
+        "valuation_date": null,
+        "valuation_references": [],
+        "lead_indication": null,
+        "lead_service": null,
+        "business_model": "pipeline",
+        "business_model_basis": {
+          "reason": "[가상 예시] 가상 랩스 E 사업 모델 근거",
+          "source": "https://example.invalid/company-e/ir"
+        }
+      },
+      "tech_analysis": "[가상 예시] 가상 랩스 E의 플랫폼은 자체 학습 데이터로 후보물질을 설계한다. AI 발굴 물질의 임상 1상 성공률은 80~90%로 보고됐으나 2상은 업계 평균 수준이다(Jayatunga 외, 2024). 규제 측면에서는 AI 모델 검증 자료 제출 요구가 늘고 있다(식품의약품안전평가원, 2026).",
+      "market_analysis": "[가상 예시] 대표 적응증 시장은 치료 영역 기준 수치를 사용했다(KBIOIS Vol.95). 제약사의 AI 파트너십 수요가 늘고 있어 기술이전 기회가 크다.",
+      "competitor_analysis": "[가상 예시] 동종 AI 신약 스타트업 대비 임상 단계가 앞서 있으나, 빅테크의 단백질 구조 예측 모델과 기술 격차는 제한적이다. 자체 실험 데이터가 진입장벽이다."
+    }
+  ],
+  "references": [
+    {
+      "company": "가상 바이오 A",
+      "agent": "profile",
+      "title": "[가상 예시] 가상 바이오 A IR 자료",
+      "source": "web",
+      "issuer": "가상 바이오 A 홈페이지",
+      "year": 2026,
+      "doc_type": "web",
+      "page": null,
+      "url": "https://example.invalid/company-a/ir",
+      "authors": null,
+      "published_date": "2026-06-15",
+      "site_name": "가상 바이오 A 홈페이지",
+      "journal": null,
+      "volume": null,
+      "issue": null,
+      "pages": null
+    },
+    {
+      "company": "가상 바이오 A",
+      "agent": "tech",
+      "title": "How successful are AI-discovered drugs in clinical trials? A first analysis and emerging lessons",
+      "source": "RAG",
+      "issuer": null,
+      "year": 2024,
+      "doc_type": "paper",
+      "page": 3,
+      "url": null,
+      "authors": [
+        "Jayatunga, M. K. P.",
+        "Ayers, M.",
+        "Bruens, L.",
+        "Jayanth, D.",
+        "Meier, C."
+      ],
+      "published_date": null,
+      "site_name": null,
+      "journal": "Drug Discovery Today",
+      "volume": "29",
+      "issue": "6",
+      "pages": "104009"
+    },
+    {
+      "company": "가상 바이오 A",
+      "agent": "tech",
+      "title": "How successful are AI-discovered drugs in clinical trials? A first analysis and emerging lessons",
+      "source": "RAG",
+      "issuer": null,
+      "year": 2024,
+      "doc_type": "paper",
+      "page": 5,
+      "url": null,
+      "authors": [
+        "Jayatunga, M. K. P.",
+        "Ayers, M.",
+        "Bruens, L.",
+        "Jayanth, D.",
+        "Meier, C."
+      ],
+      "published_date": null,
+      "site_name": null,
+      "journal": "Drug Discovery Today",
+      "volume": "29",
+      "issue": "6",
+      "pages": "104009"
+    },
+    {
+      "company": "가상 바이오 A",
+      "agent": "tech",
+      "title": "AI 기반 의약품 개발 관련 규제·심사 동향 정보자료집",
+      "source": "RAG",
+      "issuer": "식품의약품안전평가원",
+      "year": 2026,
+      "doc_type": "report",
+      "page": 12,
+      "url": null,
+      "authors": null,
+      "published_date": null,
+      "site_name": null,
+      "journal": null,
+      "volume": null,
+      "issue": null,
+      "pages": null
+    },
+    {
+      "company": "가상 바이오 A",
+      "agent": "market",
+      "title": "글로벌 전문의약품 시장 현황 및 전망 (KBIOIS 브리프 Vol.95)",
+      "source": "RAG",
+      "issuer": "한국바이오협회",
+      "year": 2026,
+      "doc_type": "report",
+      "page": 4,
+      "url": null,
+      "authors": null,
+      "published_date": null,
+      "site_name": null,
+      "journal": null,
+      "volume": null,
+      "issue": null,
+      "pages": null
+    },
+    {
+      "company": "가상 바이오 A",
+      "agent": "competitor",
+      "title": "[가상 예시] AI 신약 스타트업 투자 동향",
+      "source": "web",
+      "issuer": "가상 바이오뉴스",
+      "year": 2026,
+      "doc_type": "web",
+      "page": null,
+      "url": "https://example.invalid/news/ai-drug",
+      "authors": null,
+      "published_date": "2026-08-20",
+      "site_name": "가상 바이오뉴스",
+      "journal": null,
+      "volume": null,
+      "issue": null,
+      "pages": null
+    },
+    {
+      "company": "가상 플랫폼 B",
+      "agent": "profile",
+      "title": "[가상 예시] 가상 플랫폼 B IR 자료",
+      "source": "web",
+      "issuer": "가상 플랫폼 B 홈페이지",
+      "year": 2026,
+      "doc_type": "web",
+      "page": null,
+      "url": "https://example.invalid/company-b/ir",
+      "authors": null,
+      "published_date": "2026-06-15",
+      "site_name": "가상 플랫폼 B 홈페이지",
+      "journal": null,
+      "volume": null,
+      "issue": null,
+      "pages": null
+    },
+    {
+      "company": "가상 플랫폼 B",
+      "agent": "market",
+      "title": "글로벌 전문의약품 시장 현황 및 전망 (KBIOIS 브리프 Vol.95)",
+      "source": "RAG",
+      "issuer": "한국바이오협회",
+      "year": 2026,
+      "doc_type": "report",
+      "page": 4,
+      "url": null,
+      "authors": null,
+      "published_date": null,
+      "site_name": null,
+      "journal": null,
+      "volume": null,
+      "issue": null,
+      "pages": null
+    },
+    {
+      "company": "가상 테라퓨틱스 C",
+      "agent": "profile",
+      "title": "[가상 예시] 가상 테라퓨틱스 C IR 자료",
+      "source": "web",
+      "issuer": "가상 테라퓨틱스 C 홈페이지",
+      "year": 2026,
+      "doc_type": "web",
+      "page": null,
+      "url": "https://example.invalid/company-c/ir",
+      "authors": null,
+      "published_date": "2026-06-15",
+      "site_name": "가상 테라퓨틱스 C 홈페이지",
+      "journal": null,
+      "volume": null,
+      "issue": null,
+      "pages": null
+    },
+    {
+      "company": "가상 디스커버리 D",
+      "agent": "profile",
+      "title": "[가상 예시] 가상 디스커버리 D IR 자료",
+      "source": "web",
+      "issuer": "가상 디스커버리 D 홈페이지",
+      "year": 2026,
+      "doc_type": "web",
+      "page": null,
+      "url": "https://example.invalid/company-d/ir",
+      "authors": null,
+      "published_date": "2026-06-15",
+      "site_name": "가상 디스커버리 D 홈페이지",
+      "journal": null,
+      "volume": null,
+      "issue": null,
+      "pages": null
+    },
+    {
+      "company": "가상 랩스 E",
+      "agent": "profile",
+      "title": "[가상 예시] 가상 랩스 E IR 자료",
+      "source": "web",
+      "issuer": "가상 랩스 E 홈페이지",
+      "year": 2026,
+      "doc_type": "web",
+      "page": null,
+      "url": "https://example.invalid/company-e/ir",
+      "authors": null,
+      "published_date": "2026-06-15",
+      "site_name": "가상 랩스 E 홈페이지",
+      "journal": null,
+      "volume": null,
+      "issue": null,
+      "pages": null
+    }
+  ]
+}

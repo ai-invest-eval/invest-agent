@@ -1,0 +1,259 @@
+{
+  "selected_startup": {
+    "name": "가상 플랫폼 B",
+    "country": null,
+    "stage": "시리즈 A",
+    "source_url": null
+  },
+  "startup_profile": {
+    "missing_fields": [
+      "pre_money_valuation",
+      "gates.patent_loss",
+      "gates.funding_gap_restructuring"
+    ],
+    "founded_year": 2020,
+    "platform": "AI 기반 신약 설계",
+    "ceo_full_time": true,
+    "name": "가상 플랫폼 B",
+    "gates": {
+      "not_eligible": false,
+      "subsidiary_of_large_corp": false,
+      "clinical_failure": false,
+      "founder_exit_or_dispute": false,
+      "patent_loss": null,
+      "funding_gap_restructuring": null
+    },
+    "pipeline": [],
+    "funding_history": [
+      {
+        "date": "2026-03",
+        "stage": "시리즈 A",
+        "stage_region": "domestic",
+        "stage_original": "시리즈A",
+        "amount": {
+          "original_amount": 3000000000,
+          "original_currency": "KRW",
+          "krw_amount": 3000000000,
+          "usd_amount": null,
+          "fx_date": null,
+          "fx_source": null
+        },
+        "investors": [
+          {
+            "name": "가상 VC B",
+            "kind": "financial",
+            "follow_on": false
+          }
+        ],
+        "references": [
+          {
+            "company": "가상 플랫폼 B",
+            "agent": "profile",
+            "title": "[가상 예시] 기업 B IR",
+            "source": "web",
+            "issuer": "가상 플랫폼 B",
+            "year": 2026,
+            "doc_type": "web",
+            "page": null,
+            "url": "https://example.invalid/company-b/ir",
+            "authors": null,
+            "published_date": "2026-06-15",
+            "site_name": "가상 플랫폼 B",
+            "journal": null,
+            "volume": null,
+            "issue": null,
+            "pages": null
+          }
+        ]
+      }
+    ],
+    "partnerships": [
+      {
+        "partner": "가상 제약사 B",
+        "kind": "유료 서비스",
+        "date": "2026-04",
+        "upfront_payment": {
+          "original_amount": 0,
+          "original_currency": "KRW",
+          "krw_amount": 0,
+          "usd_amount": null,
+          "fx_date": null,
+          "fx_source": null
+        },
+        "references": [
+          {
+            "company": "가상 플랫폼 B",
+            "agent": "profile",
+            "title": "[가상 예시] 기업 B IR",
+            "source": "web",
+            "issuer": "가상 플랫폼 B",
+            "year": 2026,
+            "doc_type": "web",
+            "page": null,
+            "url": "https://example.invalid/company-b/ir",
+            "authors": null,
+            "published_date": "2026-06-15",
+            "site_name": "가상 플랫폼 B",
+            "journal": null,
+            "volume": null,
+            "issue": null,
+            "pages": null
+          }
+        ]
+      }
+    ],
+    "team": [
+      {
+        "name": "가상 창업자 B",
+        "role": "CEO",
+        "is_founder": true,
+        "full_time": true,
+        "degree": "컴퓨터공학 박사",
+        "career": "AI 연구 경력",
+        "references": [
+          {
+            "company": "가상 플랫폼 B",
+            "agent": "profile",
+            "title": "[가상 예시] 기업 B IR",
+            "source": "web",
+            "issuer": "가상 플랫폼 B",
+            "year": 2026,
+            "doc_type": "web",
+            "page": null,
+            "url": "https://example.invalid/company-b/ir",
+            "authors": null,
+            "published_date": "2026-06-15",
+            "site_name": "가상 플랫폼 B",
+            "journal": null,
+            "volume": null,
+            "issue": null,
+            "pages": null
+          }
+        ]
+      }
+    ],
+    "founder_degree_career": "[가상 예시] 컴퓨터공학 박사·AI 연구 경력",
+    "upfront_payment": {
+      "original_amount": 0,
+      "original_currency": "KRW",
+      "krw_amount": 0,
+      "usd_amount": null,
+      "fx_date": null,
+      "fx_source": null
+    },
+    "pre_money_valuation": null,
+    "lead_indication": null,
+    "lead_service": "AI 항체 설계",
+    "business_model": "platform",
+    "business_model_basis": {
+      "reason": "[가상 예시] 자체 후보물질이 없고 AI 항체 설계 서비스가 주 사업으로 확인됨.",
+      "source": "https://example.invalid/company-b/ir"
+    },
+    "upfront_payment_basis": {
+      "partner": "가상 제약사 B",
+      "date": "2026-04",
+      "references": [
+        {
+          "company": "가상 플랫폼 B",
+          "agent": "profile",
+          "title": "[가상 예시] 기업 B IR",
+          "source": "web",
+          "issuer": "가상 플랫폼 B",
+          "year": 2026,
+          "doc_type": "web",
+          "page": null,
+          "url": "https://example.invalid/company-b/ir",
+          "authors": null,
+          "published_date": "2026-06-15",
+          "site_name": "가상 플랫폼 B",
+          "journal": null,
+          "volume": null,
+          "issue": null,
+          "pages": null
+        }
+      ]
+    },
+    "valuation_date": null,
+    "valuation_references": [
+      {
+        "company": "가상 플랫폼 B",
+        "agent": "profile",
+        "title": "[가상 예시] 기업 B IR",
+        "source": "web",
+        "issuer": "가상 플랫폼 B",
+        "year": 2026,
+        "doc_type": "web",
+        "page": null,
+        "url": "https://example.invalid/company-b/ir",
+        "authors": null,
+        "published_date": "2026-06-15",
+        "site_name": "가상 플랫폼 B",
+        "journal": null,
+        "volume": null,
+        "issue": null,
+        "pages": null
+      }
+    ]
+  },
+  "tech_analysis": "",
+  "market_analysis": "",
+  "competitor_analysis": "",
+  "references": [
+    {
+      "company": "가상 플랫폼 B",
+      "agent": "profile",
+      "title": "[가상 예시] 기업 B IR",
+      "source": "web",
+      "issuer": "가상 플랫폼 B",
+      "year": 2026,
+      "doc_type": "web",
+      "page": null,
+      "url": "https://example.invalid/company-b/ir",
+      "authors": null,
+      "published_date": "2026-06-15",
+      "site_name": "가상 플랫폼 B",
+      "journal": null,
+      "volume": null,
+      "issue": null,
+      "pages": null
+    },
+    {
+      "company": "가상 플랫폼 B",
+      "agent": "tech",
+      "title": "[가상 예시] 기업 B 기술 소개",
+      "source": "web",
+      "issuer": "가상 플랫폼 B",
+      "year": 2026,
+      "doc_type": "web",
+      "page": null,
+      "url": "https://example.invalid/company-b/tech",
+      "authors": null,
+      "published_date": null,
+      "site_name": null,
+      "journal": null,
+      "volume": null,
+      "issue": null,
+      "pages": null
+    },
+    {
+      "company": "가상 플랫폼 B",
+      "agent": "market",
+      "title": "[가상 예시] AI 신약 시장 보고서",
+      "source": "RAG",
+      "issuer": "가상 협회",
+      "year": 2026,
+      "doc_type": "report",
+      "page": 3,
+      "url": null,
+      "authors": null,
+      "published_date": null,
+      "site_name": null,
+      "journal": null,
+      "volume": null,
+      "issue": null,
+      "pages": null
+    }
+  ],
+  "evaluation_history": [],
+  "investment_decision": null
+}
