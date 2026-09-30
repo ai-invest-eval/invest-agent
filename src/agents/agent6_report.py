@@ -673,6 +673,24 @@ def _gap_facts(record: EvaluationRecord) -> str:
     return "\n".join(lines)
 
 
+def _recheck_facts(record: EvaluationRecord) -> str:
+    """재검토 조건을 평가 결과에서 코드로 만든다 (LLM 문장 대신)."""
+    missing = [f"{q} {QUESTION_LABELS[q]}" for q in missing_questions(record)]
+    unconfirmed = [GATE_LABELS[g] for g in record.get("unconfirmed_gates") or []]
+    lines = []
+    if missing:
+        lines.append(
+            f"- 정보 부족 질문 {len(missing)}개의 근거 확보: {', '.join(missing)}"
+        )
+    if unconfirmed:
+        lines.append(f"- 미확인 리스크 관문 확인: {', '.join(unconfirmed)}")
+    if record.get("hold_reason") == "자격 미확인":
+        lines.append("- 상장 여부·투자 단계·대기업 자회사 여부 확인")
+    if not lines:
+        lines.append(f"- 보류 사유 해소: {hold_line(record)}")
+    return "\n".join(lines) + "\n\n위 항목이 확인되면 같은 기준으로 다시 평가한다."
+
+
 def _no_pass_payload(record: EvaluationRecord) -> dict:
     """통과 0곳 LLM 입력. 영역·질문 점수를 넣지 않아 문장에도 점수가 나오지 않게 한다."""
     evidence = record.get("question_evidence") or {}
@@ -700,9 +718,7 @@ def _build_no_pass_report(
         f"| {k} | {v} | {', '.join(r['name'] for r in records if _hold_category(r) == k)} |"
         for k, v in counts.items()
     )
-    reasons = "\n".join(
-        f"- {_trim(_remove_intro(t), 150)}" for t in draft.summary_reasons[:3]
-    )
+    reasons = "\n".join(f"- {r['name']}: {hold_line(r)}" for _, _, r in ranked[:3])
     return "\n\n".join(
         [
             _header(records, keyword),
@@ -723,7 +739,7 @@ def _build_no_pass_report(
             + _gap_facts(top)
             + "\n\n"
             + _trim(_remove_intro(draft.top_gap), limit),
-            "### 2.3 재검토 조건\n\n" + _trim(_remove_intro(draft.recheck), limit),
+            "### 2.3 재검토 조건\n\n" + _recheck_facts(top),
             "## REFERENCE",
             reference_section(refs),
         ]

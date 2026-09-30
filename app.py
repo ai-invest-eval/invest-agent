@@ -69,17 +69,30 @@ def main() -> None:
         print(json.dumps(update, ensure_ascii=False, indent=2))
         return
 
-    # TODO(3-A/3-B 담당): 색인 준비 구현 후 기존 인덱스 재사용 단계 연결
-    # from src.rag.build_index import build_indexes
-    # build_indexes()
-    # TODO(통합 담당): 아래 config를 사용해 그래프 실행 연결
-    # Agent 1은 그래프 안에서 최초 탐색하고, 5 → 1 재진입 시 다음 후보를 선택한다.
-    # from src.graph import build_graph
-    # result = build_graph().invoke(state, config=execution_config)
-    # TODO(6번 담당): Markdown 저장·PDF 출력 연결
+    # 색인 준비: 기존 인덱스가 있으면 재사용한다.
+    from src.rag.build_index import build_indexes
+
+    build_indexes()
+    # 전체 그래프 실행. 6번 노드가 outputs/에 보고서 Markdown·PDF를 저장한다.
+    from src.graph import build_graph
+
+    result = build_graph().invoke(state, config=execution_config)
+    history = result.get("evaluation_history") or []
+    # 진단용 실행 기록: 질문별 점수·근거·결측 사유와 후보 목록
+    out_dir = PROJECT_ROOT / "outputs"
+    out_dir.mkdir(exist_ok=True)
+    run_state = {
+        "candidate_startups": result.get("candidate_startups") or [],
+        "evaluation_history": history,
+    }
+    (out_dir / "run_state.json").write_text(
+        json.dumps(run_state, ensure_ascii=False, indent=2, default=str),
+        encoding="utf-8",
+    )
+    passed = [r["name"] for r in history if r.get("verdict") == "통과"]
     print(
-        f"실행 골격: max_candidates={max_candidates}, "
-        f"recursion_limit={execution_config['recursion_limit']} / 전체 연결: TODO 구현"
+        f"완료: 후보 {len(history)}곳 평가, 통과 {len(passed)}곳 "
+        f"({', '.join(passed) or '없음'}) / 보고서는 outputs/ 폴더"
     )
 
 
