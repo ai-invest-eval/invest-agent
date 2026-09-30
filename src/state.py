@@ -39,3 +39,22 @@ class InvestmentState(TypedDict, total=False):
 
     # 6번: 최종 투자 보고서 (마크다운)
     final_report: str
+
+
+def create_initial_state(input_keyword: str) -> InvestmentState:
+    """모든 실행에서 동일한 초기값을 사용한다."""
+    if not input_keyword.strip():
+        raise ValueError("검색 키워드를 입력하세요.")
+    return {
+        "input_keyword": input_keyword.strip(),
+        "candidate_startups": [],
+        "selected_startup": None,
+        "startup_profile": None,
+        "tech_analysis": "",
+        "market_analysis": "",
+        "competitor_analysis": "",
+        "investment_decision": None,
+        "evaluation_history": [],
+        "references": [],
+        "final_report": "",
+    }

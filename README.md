@@ -25,9 +25,12 @@ uv run python --version
 │   ├── agents/
 │   ├── rag/
 │   ├── tools/
+│   ├── graph.py          # 그래프 연결 TODO
 │   ├── schemas.py
 │   └── state.py
 ├── data/
+│   ├── technology/       # 기술요약 PDF
+│   └── market/           # 시장성 평가 PDF
 ├── .env.example
 ├── .gitignore
 ├── .pre-commit-config.yaml
@@ -41,7 +44,7 @@ uv run python --version
 
 | 경로 | 용도 |
 | --- | --- |
-| `app.py` | 실행 진입점. 실행 코드는 추후 추가합니다. |
+| `app.py` | 전체 실행 TODO 및 개별 에이전트 실행 진입점 |
 | `src/` | 공통 State 및 Graph 코드 |
 | `src/state.py` | 에이전트가 공유하는 State |
 | `src/schemas.py` | 에이전트 간 데이터 형식 |
@@ -54,3 +57,28 @@ uv run python --version
 구현 파일과 하위 디렉터리는 필요할 때 추가합니다.
 
 커밋과 머지 규칙은 [CONTRIBUTING.md](CONTRIBUTING.md)를 참고합니다.
+
+## 개별 에이전트 개발
+
+`app.py`는 선택한 에이전트만 import합니다. 다른 에이전트나 RAG 구현 없이 담당 노드를 개발할 수 있습니다.
+
+```bash
+uv run python app.py --agent 1 --keyword "AI 신약개발 스타트업"
+```
+
+Agent 2 이후는 담당 노드의 입력 계약에 맞는 샘플 State JSON을 준비합니다.
+이전 에이전트의 실행 결과 대신 이 샘플로 독립 개발할 수 있습니다.
+
+```bash
+uv run python app.py --agent 3a --state samples/tech_state.json
+```
+
+`--agent` 값은 `1`, `2`, `3a`, `3b`, `4`, `5`, `6`입니다.
+샘플 파일은 담당자가 작성하며 위 경로는 예시입니다.
+현재 에이전트는 미구현 골격이므로 호출 시 미구현 안내로 종료합니다.
+각 함수 구현 후에는 해당 노드의 반환 데이터만 JSON으로 출력합니다.
+
+## 전체 실행 골격
+
+`src/graph.py`에 노드 연결과 후보 반복 TODO가 있습니다.
+현재 `uv run python app.py`는 골격 안내만 출력하며 전체 평가는 실행하지 않습니다.
