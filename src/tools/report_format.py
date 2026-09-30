@@ -192,25 +192,52 @@ def _ref_key(ref: Reference) -> tuple:
 
 
 def collect_references(
-    record: EvaluationRecord | None, state_references: Iterable[Reference]
+    record: EvaluationRecord | None,
+    state_references: Iterable[Reference],
+    analyses: bool = True,
 ) -> list[dict]:
-    """보고서에 실제 사용한 출처만 모은다.
+    """보고서 본문에 실제로 반영된 출처만 모은다.
 
-    - 상세 분석 대상 기업(record)의 출처: company 일치 + 분석 에이전트(profile/tech/market/competitor)
-    - 질문별 근거(question_evidence)와 프로필 항목에 연결된 출처
-    같은 자료는 한 항목으로 합치고 원문 인용 쪽수(page)는 모아서 보존한다.
+    1. 질문별 근거(question_evidence)의 출처: 보고서가 15개 질문 점수를 모두 표시
+    2. 보고서가 표시하는 프로필 항목의 출처: 대표 선급금, 기업가치, 사업 모델 근거
+    3. analyses=True일 때 상세 분석 글(기술·시장·경쟁)을 쓴 에이전트가 남긴 출처
+    State의 나머지 출처(탐색 단계, 표시하지 않은 프로필 항목)는 넣지 않는다.
     """
     if record is None:
         return []
+    state_references = list(state_references)
     name = normalize_name(record["name"])
-    pool: list[Reference] = [
-        r
-        for r in state_references
-        if normalize_name(r.get("company")) == name
-        and r.get("agent") in {"profile", "tech", "market", "competitor"}
-    ]
+    same = [r for r in state_references if normalize_name(r.get("company")) == name]
+    pool: list[Reference] = []
     for evidence in (record.get("question_evidence") or {}).values():
         pool.extend(evidence.get("references") or [])
+
+    profile = record.get("startup_profile") or {}
+    if profile.get("upfront_payment") is not None:
+        pool.extend(
+            (profile.get("upfront_payment_basis") or {}).get("references") or []
+        )
+    if profile.get("pre_money_valuation") is not None:
+        pool.extend(profile.get("valuation_references") or [])
+    basis_url = (profile.get("business_model_basis") or {}).get("source")
+    if basis_url:
+        pool.extend(
+            r
+            for r in same
+            if r.get("url") and _normalize_url(r["url"]) == _normalize_url(basis_url)
+        )
+
+    if analyses:
+        used = {
+            agent
+            for agent, text in (
+                ("tech", record.get("tech_analysis")),
+                ("market", record.get("market_analysis")),
+                ("competitor", record.get("competitor_analysis")),
+            )
+            if text
+        }
+        pool.extend(r for r in same if r.get("agent") in used)
 
     merged: dict[tuple, dict] = {}
     for ref in pool:
