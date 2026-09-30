@@ -63,7 +63,7 @@ uv run pre-commit install
 - Agent 5는 현재 기업의 `investment_decision`과 현재 기업만 담은 `evaluation_history=[record]`를 반환합니다. `record`는 현재 `EvaluationRecord` 정의대로 점수 필드를 펼쳐 저장합니다.
 - `question_evidence`는 QA~QO 질문별 `score`, `rationale`, `references`, `missing`을 저장합니다. `question_scores`와 같은 점수를 사용하고, 평가 이력에도 함께 저장합니다. `missing=True`이면 결측 기본점과 결측 사유를 기록합니다.
 - 통과/보류와 관계없이 평가를 기록합니다. 그래프 조건 함수는 후보 목록과 평가 이력을 비교해 미평가 후보가 남으면 Agent 1로, 없으면 Agent 6으로 이동합니다. 별도 후보 선택 노드는 추가하지 않습니다.
-- Agent 6은 현재 후보 필드 대신 누적 평가 이력을 입력으로 사용합니다. 이력이 비어 있는 경우의 보고서 정책은 Agent 6과 그래프 담당자가 합의합니다.
+- Agent 6은 현재 후보 필드 대신 누적 평가 이력을 입력으로 사용합니다. 후보 없음/통과 없음은 LLM이 실제 탐색·평가 근거로 설명하며 추천 기업을 만들어내지 않습니다.
 
 반환 예시:
 
@@ -77,7 +77,7 @@ def tech_analysis(state: InvestmentState) -> TechAnalysisUpdate:
 
 현재 노드 파일은 `NotImplementedError`를 발생시키는 구현 골격입니다. 담당자는 함수명과 반환 계약을 유지하며 구현합니다. 테스트용 샘플 반환은 별도 mock/fixture로 작성합니다.
 
-Update 타입과 `InvestmentState`는 `TypedDict`이므로 런타임 검증을 수행하지 않습니다. LLM 응답 검증은 담당 구현에서 Pydantic 등의 검증 수단을 사용합니다. 분석 결과 세부 구조, 점수 범위 및 결측값 표현 등 기존 스키마 TODO는 관련 담당자와 합의 후 변경합니다.
+Update 타입과 `InvestmentState`는 `TypedDict`이므로 런타임 검증을 수행하지 않습니다. LLM 응답 검증은 담당 구현에서 Pydantic 등의 검증 수단을 사용합니다. 결측·금액·날짜·단계와 프로필 내부 구조는 [공통 데이터 계약](docs/data_contracts.md), 채점은 [투자평가기준 v4](docs/investment_criteria_v4.md)를 따릅니다. 공통 계약 변경은 관련 담당자와 확인합니다.
 
 ## Shared Defaults
 
@@ -91,19 +91,21 @@ Update 타입과 `InvestmentState`는 `TypedDict`이므로 런타임 검증을 �
 - RAG 기본값은 1,000토큰 청킹·200토큰 겹침입니다. agent/topic 필터와 원문 쪽수·문서 메타데이터를 보존합니다.
 - 자격 관문이 미확인이면 보류(자격 미확인), 리스크 관문이 미확인이면 평가 진행 후 보고서에 미확인으로 표시합니다. 원본 GateChecks의 None은 유지합니다.
 - 결측 질문은 2점(QN/QO는 3점)을 적용하며 QN/QO도 결측 비중에 포함합니다. missing_weight는 0~1 비율, 영역·총점은 0~100입니다.
-- 사업 모델은 pipeline/platform으로 기록하며 QD 시장 기준을 구분합니다. 혼합 사업·미확인 분류는 2·3-B·5번 담당자가 합의합니다.
+- 사업 모델은 개선본 v4대로 2번만 pipeline/platform/unknown으로 분류하고 대표 시장 하나를 지정합니다. 3-B·5번은 재분류하지 않습니다. unknown은 일반 None 규칙의 예외이며 QD만 결측 2점으로 처리합니다.
+- 수집 데이터의 미확인은 None, 확인된 없음은 []·False·0으로 구분합니다. missing_fields는 프로필 기준 점 경로를 사용합니다.
+- 금액은 숫자로 보존하고, 보고서에는 국내 N원 / 해외 N원/M달러로 표시합니다. USD 환율 1,400원은 v4의 고정 가정으로 기록하며 다른 통화의 환산 근거가 없으면 None을 유지합니다.
+- 날짜는 확인한 정밀도대로 YYYY-MM-DD / YYYY-MM / YYYY를 사용합니다. 투자 단계는 국내 시리즈 A / 해외 시리즈 AF 등으로 구분하며 개발 단계는 공통 계약을 따릅니다.
+- 영역 키는 founder/market/product/moat/traction/deal입니다. 미확인 리스크 관문은 unconfirmed_gates에 기록합니다.
+- REFERENCE는 실제 보고서 작성에 사용한 자료만 유형별로 기재합니다. 기관 보고서·논문·웹 표기와 메타데이터는 공통 데이터 계약을 따릅니다.
+- 보류 사유·정렬은 투자평가기준 v4를 따릅니다. 후보 식별·빈 결과 설명은 담당 에이전트가 근거로 판단합니다.
+- 검색 청크에 분석 목적에 맞는 수치·기준·사례가 있는지 LLM이 판단합니다. 부족하면 검색어 변경 후 최대 1회 재검색하며 API 오류와는 구분합니다.
 
-## Pending Agreements
+## Contract Status
 
-최종 설계서에서 정한 판정·검색 정책은 그대로 구현합니다. 아래는 구현 전에 맞춰야 할 데이터 계약입니다.
+개발 전에 필요한 공통 계약은 확정됐습니다. 프로필 내부 구조는 schemas.py의 FundingRound/Investor/Partnership/TeamMember를 따르며 항목별 references로 출처를 연결합니다. 선급금·기업가치 요약 기준은 [공통 데이터 계약](docs/data_contracts.md)에 정의했습니다.
 
-| 합의 항목 | 담당 | 결정할 내용 |
-| --- | --- | --- |
-| 결측 직렬화 | 2·3-A·3-B·4·5번 | 키 생략/None/빈 목록의 의미, 확인된 없음과 미확인, missing_fields 경로 표기. 숫자·bool에 문자열 사용 금지 |
-| 프로필 세부 구조 | 2·5번 | funding_history, partnerships, team, upfront_payment, pre_money_valuation 내부 필드와 필수 항목 |
-| 단위·날짜·단계 | 1·2·3-B·5번 | 금액 통화/단위/환율 기준일, 투자·개발 단계 표기, QN 동일 단계 중앙값 출처와 비교 조건 |
-| 사업 모델 분류 | 2·3-B·5번 | pipeline/platform 혼합 기업과 미확인 처리, 주력 적응증/서비스 시장 선택 근거 |
-| 출처와 RAG 메타데이터 | 2·3-A·3-B·4·6번 | DOC_META 키와 topic 목록, 발췌 원문 쪽수 매핑, URL/발행연도 누락 처리, 출처 중복 식별 |
-| 점수 전달·표시 | 5·6번 | area_scores 6개 키, hold_reason 코드+상세 사유, 반올림 시점, 총점·창업자·시장성이 모두 동점일 때 정렬 |
-| 후보 식별·빈 결과 | 1·통합·6번 | 한/영 기업명 별칭·중복 기준, 후보 0개 처리. 이름 식별이 불충분하면 candidate_id 추가 여부 합의 |
-| 검색 인터페이스·실패 | 3-A·3-B·통합 | Retriever 입력/출력, RRF 상수, 필터·전문용어 토큰화, API 오류와 근거 부족 구분 및 재시도 처리 |
+QN은 투자평가기준 v4의 동일 단계 중앙값 대비 점수와 결측 3점 처리를 따릅니다. 문서에 없는 24개월·최소 3개 조건은 추가하지 않습니다. 비교기업 출처·조건은 구현 중 근거로 기록하며 확인 불가면 결측 처리합니다.
+
+출처 표기·점수 전달은 확정된 문서대로, 후보 식별·빈 결과와 검색 근거 판단은 담당 에이전트가 처리합니다. 검색 인터페이스·RRF 상수 등은 담당자 구현 TODO이며 별도 팀 합의 항목에서 제외합니다.
+
+가상 프로필 2개와 QN 계산 예시는 [계약 샘플](docs/agreement_samples.md)을 참고합니다. 데이터는 가상이며 프로필 구조는 확정 계약입니다. 개발 전 필수 추가 합의는 없습니다.
