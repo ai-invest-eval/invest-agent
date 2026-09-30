@@ -159,7 +159,11 @@ def evaluate(state: InvestmentState, llm) -> InvestmentDecision:
 
     raw = call_judge(llm, build_prompts(state, ref_catalog))
     evidence = scoring.finalize_evidence(
-        raw, ref_catalog, scoring.build_corpus(state), profile.get("business_model")
+        raw,
+        ref_catalog,
+        scoring.build_corpus(state),
+        profile.get("business_model"),
+        scoring.chunk_aliases(state, ref_catalog),
     )
     area_scores, total, missing_weight = scoring.compute_scores(evidence)
     gate_hits, eligibility_unknown, unconfirmed = scoring.check_gates(profile)
