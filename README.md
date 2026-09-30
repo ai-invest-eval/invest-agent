@@ -102,3 +102,18 @@ uv run python app.py --agent 1 --max-candidates 10
 전체 그래프 실행 한도는 최대 후보 수 × 8 + 10으로 계산합니다(기본 130).
 계산식은 통합 담당자가 실제 연결 단계와 재시도 예산에 맞춰 조정합니다.
 Agent 1은 최초 탐색 후 후보를 확정하고, `5 → 1` 재진입에서는 평가 이력을 보고 다음 후보를 선택합니다.
+
+## 보고서 생성 (Agent 6)
+
+Agent 6은 누적 평가 이력으로 보고서를 만들고 `outputs/investment_report.md`, `outputs/investment_report.pdf`에 저장합니다. PDF는 Markdown → HTML → WeasyPrint로 변환하며, 5쪽을 넘으면 문단 길이와 글자 크기를 줄여 다시 만듭니다.
+
+```bash
+# 가상 평가 이력 샘플로 단독 실행 (통과 2곳 / 통과 0곳)
+uv run python app.py --agent 6 --state samples/report_state.json
+uv run python app.py --agent 6 --state samples/report_state_no_pass.json
+```
+
+- 생성 결과는 **LLM-as-a-Judge**로 검증합니다. 소항목별 충실성(데이터에 있는 사실만 썼는가)·관련성(소항목 주제에 맞는가)을 1~5점으로 채점하고, 4점 미만인 부분만 1회 재작성합니다. 그래도 미달이면 평가 근거 문장으로 대체합니다. 채점 결과는 `outputs/investment_report_judge.json`에 저장됩니다.
+- `OPENAI_API_KEY`가 없거나 `REPORT_USE_LLM=0`이면 LLM 대신 평가 이력의 근거 문장으로 같은 목차를 채웁니다.
+- 저장 위치·파일명은 `REPORT_OUTPUT_DIR`, `REPORT_FILE_STEM` 환경변수로 바꿀 수 있습니다.
+- WeasyPrint는 Pango 시스템 라이브러리가 필요합니다. macOS: `brew install pango` (Homebrew 경로는 코드가 자동으로 추가), Windows: [MSYS2 설치 안내](https://doc.courtbouillon.org/weasyprint/stable/first_steps.html#windows) 참고. PDF 생성에 실패해도 Markdown 보고서는 반환합니다.
