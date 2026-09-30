@@ -26,6 +26,7 @@ from src.state import InvestmentState
 from src.tools.report_format import (
     AREA_LABELS,
     AREA_QUESTIONS,
+    GATE_LABELS,
     QUESTION_LABELS,
     collect_references,
     fmt_money,
@@ -322,6 +323,29 @@ def _failed(grades: dict[str, SectionGrade]) -> list[str]:
     ]
 
 
+def _swap(draft: DetailDraft, keys: list[str], source: DetailDraft) -> DetailDraft:
+    """draft의 keys 부분(summary 또는 2.x)만 source 내용으로 바꾼다."""
+    merged = draft.model_dump()
+    for key in keys:
+        if key == "summary":
+            merged["reasons"] = source.model_dump()["reasons"]
+            merged["key_risk"] = source.key_risk
+        else:
+            field = "s" + key.replace(".", "_")
+            merged[field] = getattr(source, field)
+    return DetailDraft(**merged)
+
+
+def _round_log(
+    round_no: int, grades: dict[str, SectionGrade], failed: list[str]
+) -> dict:
+    return {
+        "round": round_no,
+        "grades": {k: g.model_dump() for k, g in grades.items()},
+        "failed": failed,
+    }
+
+
 def _write_detail(record: EvaluationRecord) -> tuple[DetailDraft, dict]:
     """초안 작성 → Judge 채점 → 미달 부분만 1회 재작성 → 그래도 미달이면 근거 문장으로 대체."""
     fallback = _fallback_detail(record)
@@ -335,51 +359,39 @@ def _write_detail(record: EvaluationRecord) -> tuple[DetailDraft, dict]:
     if draft is None:
         return fallback, log
 
-    for round_no in (1, 2):
-        grades = _judge(draft, inputs)
-        if grades is None:  # Judge 호출 실패: 검증 없이 초안을 쓰되 기록을 남긴다
-            log["rounds"].append({"round": round_no, "judge": "failed"})
-            break
-        failed = _failed(grades)
-        log["rounds"].append(
-            {
-                "round": round_no,
-                "grades": {k: g.model_dump() for k, g in grades.items()},
-                "failed": failed,
-            }
-        )
-        if not failed:
-            break
-        if round_no == 1:  # 미달 부분만 피드백을 붙여 1회 재작성
-            feedback = {k: grades[k].issues for k in failed}
-            retry = _call_llm(
-                DetailDraft,
-                {**inputs, "judge_feedback": feedback},
-                task + " judge_feedback에 적힌 문제를 반드시 고쳐라.",
-                SECTION_CHAR_LIMITS[0],
-            )
-            if retry is None:
-                break
-            merged = draft.model_dump()
-            for key in failed:
-                if key == "summary":
-                    merged["reasons"] = retry.model_dump()["reasons"]
-                    merged["key_risk"] = retry.key_risk
-                else:
-                    field = "s" + key.replace(".", "_")
-                    merged[field] = getattr(retry, field)
-            draft = DetailDraft(**merged)
-        else:  # 재작성 후에도 미달 → 근거 문장으로 대체 (사실 생성 방지)
-            merged = draft.model_dump()
-            for key in failed:
-                if key == "summary":
-                    merged["reasons"] = fallback.model_dump()["reasons"]
-                    merged["key_risk"] = fallback.key_risk
-                else:
-                    field = "s" + key.replace(".", "_")
-                    merged[field] = getattr(fallback, field)
-            draft = DetailDraft(**merged)
-            log["replaced"] = failed
+    # 1차 채점
+    grades = _judge(draft, inputs)
+    if grades is None:  # Judge 호출 자체가 실패: 채점 불가를 기록하고 초안을 쓴다
+        log["rounds"].append({"round": 1, "judge": "failed"})
+        return draft, log
+    failed = _failed(grades)
+    log["rounds"].append(_round_log(1, grades, failed))
+    if not failed:
+        return draft, log
+
+    # 미달 부분만 감점 이유를 붙여 1회 재작성
+    retry = _call_llm(
+        DetailDraft,
+        {**inputs, "judge_feedback": {k: grades[k].issues for k in failed}},
+        task + " judge_feedback에 적힌 문제를 반드시 고쳐라.",
+        SECTION_CHAR_LIMITS[0],
+    )
+    if retry is None:  # 재작성 실패: 탈락한 문단을 그대로 두지 않고 근거 문장으로 대체
+        log["replaced"] = failed
+        return _swap(draft, failed, fallback), log
+    draft = _swap(draft, failed, retry)
+
+    # 2차 채점: 재작성한 부분만 다시 확인
+    grades = _judge(draft, inputs)
+    if grades is None:  # 재작성본을 검증할 수 없음 → 검증 안 된 문단은 대체
+        log["rounds"].append({"round": 2, "judge": "failed"})
+        log["replaced"] = failed
+        return _swap(draft, failed, fallback), log
+    still = [k for k in _failed(grades) if k in failed]
+    log["rounds"].append(_round_log(2, grades, still))
+    if still:  # 재작성 후에도 미달 → 근거 문장으로 대체 (사실 생성 방지)
+        log["replaced"] = still
+        draft = _swap(draft, still, fallback)
     return draft, log
 
 
@@ -648,6 +660,37 @@ def _build_pass_report(
     )
 
 
+def _gap_facts(record: EvaluationRecord) -> str:
+    """통과 0곳 보고서용 미달 사실. 영역별 점수는 표시하지 않는다(통과 기업만 표시 계약)."""
+    missing = missing_questions(record)
+    unconfirmed = [GATE_LABELS[g] for g in record.get("unconfirmed_gates") or []]
+    lines = [
+        f"- 판정: 보류 — {hold_line(record)}",
+        "- 정보 부족 질문: "
+        + (", ".join(f"{q} {QUESTION_LABELS[q]}" for q in missing) or "없음"),
+        "- 미확인 리스크 관문: " + (", ".join(unconfirmed) or "없음"),
+    ]
+    return "\n".join(lines)
+
+
+def _no_pass_payload(record: EvaluationRecord) -> dict:
+    """통과 0곳 LLM 입력. 영역·질문 점수를 넣지 않아 문장에도 점수가 나오지 않게 한다."""
+    evidence = record.get("question_evidence") or {}
+    return {
+        "company": record["name"],
+        "hold_detail": hold_line(record),
+        "missing_questions": [QUESTION_LABELS[q] for q in missing_questions(record)],
+        "unconfirmed_gates": [
+            GATE_LABELS[g] for g in record.get("unconfirmed_gates") or []
+        ],
+        "evidence": {
+            QUESTION_LABELS[q]: e.get("rationale")
+            for q, e in evidence.items()
+            if not e.get("missing")
+        },
+    }
+
+
 def _build_no_pass_report(
     records, ranked, draft: NoPassDraft, refs, limit: int, keyword: str
 ) -> str:
@@ -677,7 +720,7 @@ def _build_no_pass_report(
             "## 2. 투자 추천 없음 사유",
             "### 2.1 보류 사유 분포\n\n" + dist,
             f"### 2.2 최고점 후보의 미달 원인: {top['name']}\n\n"
-            + "\n\n".join([_score_line(top, a) for a in AREA_LABELS])
+            + _gap_facts(top)
             + "\n\n"
             + _trim(_remove_intro(draft.top_gap), limit),
             "### 2.3 재검토 조건\n\n" + _trim(_remove_intro(draft.recheck), limit),
@@ -768,7 +811,7 @@ def report_writer(state: InvestmentState) -> ReportUpdate:
         )
     else:
         top = ranked[0][2]
-        refs = collect_references(top, state.get("references") or [])
+        refs = collect_references(top, state.get("references") or [], analyses=False)
         payload = {
             "candidates": [
                 {
@@ -779,19 +822,19 @@ def report_writer(state: InvestmentState) -> ReportUpdate:
                 }
                 for r in records
             ],
-            "top_candidate": _llm_payload(top, analysis_chars=1200),
+            "top_candidate": _no_pass_payload(top),
         }
         draft = _call_llm(
             NoPassDraft,
             payload,
             "통과 기업이 0곳이다. 투자 기업을 추천하지 말고, 보류 사유를 근거로 핵심 이유 2~3문장, "
-            "최고점 후보의 미달 원인, 재검토 조건을 작성하라.",
+            "최고점 후보의 미달 원인, 재검토 조건을 작성하라. 영역별·질문별 점수는 쓰지 않는다.",
             SECTION_CHAR_LIMITS[0],
         ) or NoPassDraft(
             summary_reasons=[
                 hold_line(r) + f" — {r['name']}" for _, _, r in ranked[:3]
             ],
-            top_gap=_evidence_text(top, [q for q in QUESTION_LABELS]),
+            top_gap=f"{top['name']}은(는) {hold_line(top)}로 보류됐다.",
             recheck="정보 부족으로 결측 처리된 질문("
             + (", ".join(missing_questions(top)) or "없음")
             + ")과 미확인 관문의 근거가 확보되면 다시 평가한다.",
