@@ -1,4 +1,4 @@
-"""전체 실행 골격 및 개별 에이전트 개발용 진입점."""
+"""개별 에이전트 실행과 전체 투자 평가 그래프의 CLI 진입점."""
 
 import argparse
 import json
@@ -15,7 +15,7 @@ from src.config import (
 )
 from src.state import create_initial_state
 
-# 선택한 에이전트만 import하므로 다른 에이전트 구현 없이 개별 실행 가능.
+# 선택한 에이전트만 import하므로 담당 노드를 독립 실행할 수 있다.
 AGENTS = {
     "1": ("src.agents.agent1_search", "startup_search"),
     "2": ("src.agents.agent2_profile", "company_profile"),
@@ -29,14 +29,14 @@ AGENTS = {
 
 def main() -> None:
     load_dotenv(PROJECT_ROOT / ".env")
-    parser = argparse.ArgumentParser(description="투자 평가 프로젝트 실행 골격")
+    parser = argparse.ArgumentParser(description="AI 신약개발 스타트업 투자 평가")
     parser.add_argument("--keyword", default="AI 신약개발 스타트업")
-    parser.add_argument("--agent", choices=AGENTS, help="개발 중인 에이전트만 실행")
-    parser.add_argument("--state", type=Path, help="개별 실행에 필요한 샘플 State JSON")
+    parser.add_argument("--agent", choices=AGENTS, help="지정한 에이전트만 실행")
+    parser.add_argument("--state", type=Path, help="공통 State 형식의 입력 JSON")
     parser.add_argument("--max-candidates", type=int, help="최대 후보 수 (기본값: 15)")
     args = parser.parse_args()
 
-    # 실행 옵션 > 환경변수(.env 포함) > 기본값. 0은 기본값으로 대체하지 않는다.
+    # 실행 옵션 > 환경변수(.env 포함) > 기본값.
     try:
         max_candidates = (
             args.max_candidates
@@ -47,19 +47,14 @@ def main() -> None:
     except ValueError as exc:
         parser.error(str(exc))
     if args.state:
-        # TODO(각 에이전트 담당): 입력 계약에 맞는 샘플 State JSON 준비
         state.update(json.loads(args.state.read_text(encoding="utf-8")))
-    # 샘플 State보다 이번 실행에서 지정한 후보 상한을 우선한다.
     state["max_candidates"] = max_candidates
-    execution_config = {"recursion_limit": calculate_recursion_limit(max_candidates)}
 
     if args.agent:
         module_name, function_name = AGENTS[args.agent]
         node = getattr(import_module(module_name), function_name)
         try:
             update = node(state)
-        except NotImplementedError as exc:
-            parser.exit(1, f"미구현: {exc}\n")
         except ValueError as exc:
             parser.exit(1, f"실행 중단: {exc}\n")
         except RuntimeError as exc:
@@ -69,17 +64,23 @@ def main() -> None:
         print(json.dumps(update, ensure_ascii=False, indent=2))
         return
 
-    # TODO(3-A/3-B 담당): 색인 준비 구현 후 기존 인덱스 재사용 단계 연결
-    # from src.rag.build_index import build_indexes
-    # build_indexes()
-    # TODO(통합 담당): 아래 config를 사용해 그래프 실행 연결
-    # Agent 1은 그래프 안에서 최초 탐색하고, 5 → 1 재진입 시 다음 후보를 선택한다.
-    # from src.graph import build_graph
-    # result = build_graph().invoke(state, config=execution_config)
-    # TODO(6번 담당): Markdown 저장·PDF 출력 연결
+    # 이미 모든 후보의 평가 이력이 있는 State는 보고서만 생성할 수 있다.
+    # 새 후보를 분석할 실행에서만 대용량 PDF 색인을 준비한다.
+    from src.agents.agent1_search import select_next_candidate
+    from src.graph import build_graph
+
+    history = state.get("evaluation_history") or []
+    candidates = state.get("candidate_startups") or []
+    if not history or select_next_candidate(candidates, history) is not None:
+        from src.rag.build_index import build_indexes
+
+        build_indexes()
+    result = build_graph().invoke(
+        state, config={"recursion_limit": calculate_recursion_limit(max_candidates)}
+    )
     print(
-        f"실행 골격: max_candidates={max_candidates}, "
-        f"recursion_limit={execution_config['recursion_limit']} / 전체 연결: TODO 구현"
+        f"전체 실행 완료: 평가 {len(result.get('evaluation_history') or [])}곳, "
+        f"보고서 {'생성' if result.get('final_report') else '미생성'}"
     )
 
 
