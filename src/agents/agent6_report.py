@@ -45,6 +45,30 @@ MAX_PAGES = 5
 # 쪽수가 넘칠 때 단계별로 줄이는 LLM 문단 최대 글자 수
 SECTION_CHAR_LIMITS = [650, 480, 340, 230]
 SECTION_KEYS = ["2.1", "2.2", "2.3", "2.4", "2.5", "2.6", "2.7"]
+# 소항목별 제목·사용 질문·사용 분석 글. LLM에는 소항목별 데이터만 나눠서 준다.
+SECTION_SPEC = {
+    "2.1": ("기업 개요와 사업 아이디어", [], []),
+    "2.2": ("기술력과 AI 검증", ["QG", "QH"], ["tech_analysis"]),
+    "2.3": ("시장 규모와 성장성", ["QD", "QE", "QF"], ["market_analysis"]),
+    "2.4": ("경쟁 구도와 차별성", ["QI", "QJ"], ["competitor_analysis"]),
+    "2.5": ("팀 구성", ["QA", "QB", "QC"], []),
+    "2.6": ("실적과 투자 조건", ["QK", "QL", "QM", "QN", "QO"], []),
+    "2.7": (
+        "사업 리스크와 한계점",
+        [],
+        ["tech_analysis", "market_analysis", "competitor_analysis"],
+    ),
+}
+# 투자 이유의 영역 → 본문 소항목 (LLM이 아닌 코드가 연결)
+AREA_SECTION = {
+    "founder": "2.5",
+    "market": "2.3",
+    "product": "2.2",
+    "moat": "2.4",
+    "traction": "2.6",
+    "deal": "2.6",
+}
+JUDGE_PASS = 4  # 충실성·관련성 모두 4점 이상이면 통과
 # SUMMARY에 들어가면 안 되는 개요·서론 표현 (교수님 감점 요소)
 INTRO_PATTERNS = re.compile(
     r"본\s*보고서|이\s*보고서|본\s*문서|이\s*문서|본\s*평가는|목적으로\s*(작성|한다)|"
@@ -60,22 +84,48 @@ LIMITATION_TEXT = (
 
 
 class Reason(BaseModel):
-    text: str = Field(description="투자 이유 한 문장 (수치 포함, 40~80자)")
-    section: Literal["2.1", "2.2", "2.3", "2.4", "2.5", "2.6"] = Field(
-        description="근거가 설명된 본문 소항목 번호"
+    text: str = Field(
+        description="투자 이유 한 문장 (이 회사의 사실·점수 포함, 40~80자)"
+    )
+    area: Literal["founder", "market", "product", "moat", "traction", "deal"] = Field(
+        description="이 이유의 근거가 속한 평가 영역"
     )
 
 
 class DetailDraft(BaseModel):
     reasons: list[Reason] = Field(description="투자 이유 정확히 3개")
     key_risk: str = Field(description="가장 중요한 리스크 한 문장")
-    s2_1: str = Field(description="2.1 기업 개요와 사업 아이디어")
-    s2_2: str = Field(description="2.2 기술력과 AI 검증 (QG, QH)")
-    s2_3: str = Field(description="2.3 시장 규모와 성장성 (QD, QE, QF)")
-    s2_4: str = Field(description="2.4 경쟁 구도와 차별성 (QI, QJ)")
-    s2_5: str = Field(description="2.5 팀 구성 (QA, QB, QC)")
-    s2_6: str = Field(description="2.6 실적과 투자 조건 (QK~QO)")
-    s2_7: str = Field(description="2.7 사업 리스크와 한계점")
+    s2_1: str = Field(
+        description="sections['2.1'] 데이터만 사용: 기업 개요와 사업 아이디어"
+    )
+    s2_2: str = Field(description="sections['2.2'] 데이터만 사용: 기술력과 AI 검증")
+    s2_3: str = Field(description="sections['2.3'] 데이터만 사용: 시장 규모와 성장성")
+    s2_4: str = Field(description="sections['2.4'] 데이터만 사용: 경쟁 구도와 차별성")
+    s2_5: str = Field(description="sections['2.5'] 데이터만 사용: 팀 구성")
+    s2_6: str = Field(description="sections['2.6'] 데이터만 사용: 실적과 투자 조건")
+    s2_7: str = Field(description="sections['2.7'] 데이터만 사용: 사업 리스크와 한계점")
+
+    def section_text(self, key: str) -> str:
+        return getattr(self, "s" + key.replace(".", "_"))
+
+
+class SectionGrade(BaseModel):
+    """LLM-as-a-Judge 채점 (Form-filling)."""
+
+    section: Literal["summary", "2.1", "2.2", "2.3", "2.4", "2.5", "2.6", "2.7"]
+    faithfulness: int = Field(
+        ge=1, le=5, description="충실성: 모든 사실·수치가 데이터에 있는가"
+    )
+    relevance: int = Field(
+        ge=1, le=5, description="관련성: 소항목 주제에 맞는 내용만 있는가"
+    )
+    issues: str = Field(description="감점 이유. 문제가 없으면 빈 문자열")
+
+
+class JudgeResult(BaseModel):
+    grades: list[SectionGrade] = Field(
+        description="summary와 2.1~2.7 각각 1개씩, 총 8개"
+    )
 
 
 class NoPassDraft(BaseModel):
@@ -90,8 +140,23 @@ SYSTEM_PROMPT = """너는 벤처캐피털 투자 심사역이다. 주어진 평�
 2. "본 보고서는", "이 문서는", 개요·배경·서론 문장을 쓰지 않는다. 결론과 근거부터 쓴다.
 3. 점수는 주어진 값을 그대로 인용한다. 점수를 다시 매기거나 판정을 바꾸지 않는다.
 4. missing=true인 질문은 "정보 부족"으로 표현하고 추정하지 않는다.
-5. 문장은 "~다"체로 짧게 쓴다. 각 소항목은 {limit}자 이내로 쓴다.
-6. 관문 값이 null이면 "미확인"이라고 쓴다. 미확인을 "문제 없음"으로 해석하지 않는다."""
+5. 문장은 "~다"체로 쓴다. 각 소항목은 3~5문장, {limit}자 이내로 쓰고 수치와 근거를 구체적으로 담는다.
+6. 관문 값이 null이면 "미확인"이라고 쓴다. 미확인을 "문제 없음"으로 해석하지 않는다.
+7. 각 소항목은 sections의 해당 키 데이터만 사용한다. 다른 소항목의 주제를 섞지 않는다.
+8. 업계 평균·문헌 수치(예: AI 발굴 물질의 평균 임상 성공률)는 "업계 기준"으로 구분해 쓰고 이 회사의 성과처럼 쓰지 않는다.
+9. 점수는 보고서에 코드로 따로 표시된다. "~점을 부여받았다", "높은 점수의 근거가 된다" 같은 점수 설명 문장을 쓰지 말고 사실과 그 의미를 쓴다.
+10. 투자 이유는 각각 한 문장, 80자 이내로 쓴다."""
+
+JUDGE_PROMPT = """You are an expert evaluator of investment reports. 한국어로 답한다.
+Task: 보고서 초안의 각 부분(summary, 2.1~2.7)을 평가 데이터와 비교해 채점한다.
+Criteria:
+- Faithfulness (1~5): 모든 사실·수치가 해당 소항목 데이터(sections[키])에 있는가. 데이터에 없는 내용, 과장, 업계 평균 수치를 회사 성과처럼 쓴 경우 감점. summary는 전체 데이터 기준.
+- Relevance (1~5): 소항목 제목의 주제에 맞는 내용만 있는가. 다른 소항목 주제가 섞이면 감점.
+- 추가 감점: 점수·영역명을 데이터와 다르게 인용, 데이터 근거 없는 평가 표현("뛰어나다", "명확하다"), 관문 미확인을 언급하지 않은 2.7.
+Steps:
+1. 소항목 제목과 데이터를 읽는다.
+2. 초안 문장마다 데이터에 근거가 있는지 확인한다.
+3. 점수와 감점 이유(issues)를 채운다. 관대하게 채점하지 않는다."""
 
 
 # ============================================================ 공통 도우미
@@ -125,7 +190,13 @@ def _llm_available() -> bool:
     return bool(os.getenv("OPENAI_API_KEY")) and os.getenv("REPORT_USE_LLM", "1") != "0"
 
 
-def _call_llm(schema: type[BaseModel], payload: dict, task: str, limit: int):
+def _call_llm(
+    schema: type[BaseModel],
+    payload: dict,
+    task: str,
+    limit: int,
+    system: str | None = None,
+):
     """구조화 출력으로 LLM 호출. 실패하면 None을 돌려주고 호출부가 대체 문장을 쓴다."""
     if not _llm_available():
         return None
@@ -134,7 +205,7 @@ def _call_llm(schema: type[BaseModel], payload: dict, task: str, limit: int):
 
         llm = ChatOpenAI(model=LLM_MODEL, temperature=LLM_TEMPERATURE)
         messages = [
-            ("system", SYSTEM_PROMPT.format(limit=limit)),
+            ("system", system or SYSTEM_PROMPT.format(limit=limit)),
             (
                 "human",
                 f"{task}\n\n평가 데이터(JSON):\n{json.dumps(payload, ensure_ascii=False)}",
@@ -192,6 +263,126 @@ def _llm_payload(record: EvaluationRecord, analysis_chars: int = 2500) -> dict:
     }
 
 
+def _section_inputs(record: EvaluationRecord, analysis_chars: int = 2000) -> dict:
+    """소항목별로 쓸 수 있는 데이터만 나눈다 (내용 섞임 방지)."""
+    base = _llm_payload(record, analysis_chars)
+    evidence = base["question_evidence"]
+    sections = {}
+    for key, (title, questions, analyses) in SECTION_SPEC.items():
+        data = {"title": title}
+        if questions:
+            data["questions"] = {q: evidence.get(q) for q in questions}
+        for name in analyses:
+            data[name] = base[name]
+        sections[key] = data
+    sections["2.1"]["profile"] = base["profile"]
+    sections["2.7"].update(
+        {
+            "gates": base["profile"].get("gates"),
+            "unconfirmed_gates": base["unconfirmed_gates"],
+            "missing_questions": [q for q, e in evidence.items() if e.get("missing")],
+            "missing_weight": base["missing_weight"],
+        }
+    )
+    return {
+        "company": base["company"],
+        "total": base["total"],
+        "area_scores": base["area_scores"],
+        "sections": sections,
+    }
+
+
+def _judge(draft: DetailDraft, inputs: dict) -> dict[str, SectionGrade] | None:
+    """LLM-as-a-Judge: 소항목별 충실성·관련성 채점."""
+    answer = {
+        "summary": {
+            "reasons": [f"[{r.area}] {r.text}" for r in draft.reasons],
+            "key_risk": draft.key_risk,
+        },
+        **{key: draft.section_text(key) for key in SECTION_KEYS},
+    }
+    result = _call_llm(
+        JudgeResult,
+        {"data": inputs, "draft": answer},
+        "평가 데이터(data)와 보고서 초안(draft)을 비교해 summary와 2.1~2.7을 각각 채점하라.",
+        0,
+        system=JUDGE_PROMPT,
+    )
+    if result is None:
+        return None
+    return {g.section: g for g in result.grades}
+
+
+def _failed(grades: dict[str, SectionGrade]) -> list[str]:
+    return [
+        key
+        for key in ["summary", *SECTION_KEYS]
+        if key in grades
+        and min(grades[key].faithfulness, grades[key].relevance) < JUDGE_PASS
+    ]
+
+
+def _write_detail(record: EvaluationRecord) -> tuple[DetailDraft, dict]:
+    """초안 작성 → Judge 채점 → 미달 부분만 1회 재작성 → 그래도 미달이면 근거 문장으로 대체."""
+    fallback = _fallback_detail(record)
+    inputs = _section_inputs(record)
+    task = (
+        "투자 추천 기업의 SUMMARY 투자 이유 3개(각각 근거 영역 area 지정), 핵심 리스크 1문장, "
+        "2.1~2.7 소항목을 작성하라. 소항목마다 sections의 해당 키 데이터만 쓴다."
+    )
+    draft = _call_llm(DetailDraft, inputs, task, SECTION_CHAR_LIMITS[0])
+    log: dict = {"llm": draft is not None, "rounds": []}
+    if draft is None:
+        return fallback, log
+
+    for round_no in (1, 2):
+        grades = _judge(draft, inputs)
+        if grades is None:  # Judge 호출 실패: 검증 없이 초안을 쓰되 기록을 남긴다
+            log["rounds"].append({"round": round_no, "judge": "failed"})
+            break
+        failed = _failed(grades)
+        log["rounds"].append(
+            {
+                "round": round_no,
+                "grades": {k: g.model_dump() for k, g in grades.items()},
+                "failed": failed,
+            }
+        )
+        if not failed:
+            break
+        if round_no == 1:  # 미달 부분만 피드백을 붙여 1회 재작성
+            feedback = {k: grades[k].issues for k in failed}
+            retry = _call_llm(
+                DetailDraft,
+                {**inputs, "judge_feedback": feedback},
+                task + " judge_feedback에 적힌 문제를 반드시 고쳐라.",
+                SECTION_CHAR_LIMITS[0],
+            )
+            if retry is None:
+                break
+            merged = draft.model_dump()
+            for key in failed:
+                if key == "summary":
+                    merged["reasons"] = retry.model_dump()["reasons"]
+                    merged["key_risk"] = retry.key_risk
+                else:
+                    field = "s" + key.replace(".", "_")
+                    merged[field] = getattr(retry, field)
+            draft = DetailDraft(**merged)
+        else:  # 재작성 후에도 미달 → 근거 문장으로 대체 (사실 생성 방지)
+            merged = draft.model_dump()
+            for key in failed:
+                if key == "summary":
+                    merged["reasons"] = fallback.model_dump()["reasons"]
+                    merged["key_risk"] = fallback.key_risk
+                else:
+                    field = "s" + key.replace(".", "_")
+                    merged[field] = getattr(fallback, field)
+            draft = DetailDraft(**merged)
+            log["replaced"] = failed
+    return draft, log
+
+
 def _evidence_text(record: EvaluationRecord, questions: list[str]) -> str:
     """LLM 대체용: 질문별 근거 문장을 이어 붙인다."""
     evidence = record.get("question_evidence") or {}
@@ -211,20 +402,12 @@ def _fallback_detail(record: EvaluationRecord) -> DetailDraft:
     top = sorted(
         ["founder", "market", "product", "moat", "traction"], key=lambda k: -areas[k]
     )[:3]
-    section_of = {
-        "founder": "2.5",
-        "market": "2.3",
-        "product": "2.2",
-        "moat": "2.4",
-        "traction": "2.6",
-    }
     reasons = []
     for key in top:
         first = _evidence_text(record, AREA_QUESTIONS[key]).split(". ")[0].rstrip(".")
         reasons.append(
             Reason(
-                text=f"{AREA_LABELS[key]} {fmt_score(areas[key])}점: {first}.",
-                section=section_of[key],
+                text=f"{AREA_LABELS[key]} {fmt_score(areas[key])}점: {first}.", area=key
             )
         )
     profile = record.get("startup_profile") or {}
@@ -412,7 +595,7 @@ def _build_pass_report(
 ) -> str:
     name = recommended["name"]
     reasons = "\n".join(
-        f"{i}. {_remove_intro(r.text)} (→ {r.section})"
+        f"{i}. {_trim(_remove_intro(r.text), 90)} (→ {AREA_SECTION[r.area]})"
         for i, r in enumerate(draft.reasons[:3], 1)
     )
     sections = {
@@ -528,6 +711,24 @@ def _build_empty_report(state: InvestmentState, keyword: str) -> str:
 # ============================================================ 점검
 
 
+def _judge_summary(log: dict) -> str:
+    parts = []
+    for rnd in log["rounds"]:
+        if "grades" not in rnd:
+            parts.append(f"{rnd['round']}차 Judge 호출 실패")
+            continue
+        grades = rnd["grades"].values()
+        faith = sum(g["faithfulness"] for g in grades) / len(grades)
+        rel = sum(g["relevance"] for g in grades) / len(grades)
+        failed = ", ".join(rnd["failed"]) or "없음"
+        parts.append(
+            f"{rnd['round']}차 충실성 {faith:.1f} · 관련성 {rel:.1f} · 미달 {failed}"
+        )
+    if log.get("replaced"):
+        parts.append("근거 문장으로 대체: " + ", ".join(log["replaced"]))
+    return "Judge: " + " / ".join(parts)
+
+
 def check_report(md_text: str, pages: int | None) -> list[tuple[str, bool]]:
     """교수님 가이드 점검표."""
     headings = re.findall(r"^## (.+)$", md_text, flags=re.MULTILINE)
@@ -553,6 +754,7 @@ def report_writer(state: InvestmentState) -> ReportUpdate:
     keyword = state.get("input_keyword") or "AI 신약개발 스타트업"
     ranked = rank_records(records)
     passed = [r for _, _, r in ranked if is_pass(r)]
+    judge_log: dict | None = None
 
     # 1) LLM 문장 초안은 한 번만 만들고, 쪽수 조정은 코드로 자른다.
     if not records:
@@ -560,13 +762,7 @@ def report_writer(state: InvestmentState) -> ReportUpdate:
     elif passed:
         recommended = passed[0]
         refs = collect_references(recommended, state.get("references") or [])
-        draft = _call_llm(
-            DetailDraft,
-            _llm_payload(recommended),
-            "투자 추천 기업의 SUMMARY 투자 이유 3개(각각 근거 소항목 번호 포함), 핵심 리스크 1문장, "
-            "2.1~2.7 소항목 설명을 작성하라. 2.7은 관문 미확인·정보 부족 항목을 포함한 리스크를 쓴다.",
-            SECTION_CHAR_LIMITS[0],
-        ) or _fallback_detail(recommended)
+        draft, judge_log = _write_detail(recommended)
         build = lambda limit: _build_pass_report(
             records, ranked, recommended, draft, refs, limit, keyword
         )
@@ -605,22 +801,34 @@ def report_writer(state: InvestmentState) -> ReportUpdate:
         )
 
     # 2) PDF로 바꿔 쪽수를 확인하고, 넘치면 문단 길이와 글자 크기를 한 단계씩 줄인다.
+    from src.tools.report_exporter import render_pdf, save_outputs
+
     md_text, pdf_bytes, pages = build(SECTION_CHAR_LIMITS[0]), None, None
     try:
-        from src.tools.report_exporter import render_pdf, save_outputs
-
         for level, limit in enumerate(SECTION_CHAR_LIMITS):
             md_text = build(limit)
             pdf_bytes, pages = render_pdf(md_text, level)
             if pages <= MAX_PAGES:
                 break
-        out_dir = Path(os.getenv("REPORT_OUTPUT_DIR", PROJECT_ROOT / "outputs"))
-        stem = os.getenv("REPORT_FILE_STEM", "investment_report")
-        paths = save_outputs(md_text, pdf_bytes, out_dir, stem)
-        _log(f"저장: {paths['pdf']} ({pages}쪽)")
     except (ImportError, OSError) as exc:  # WeasyPrint 시스템 라이브러리 미설치 등
-        _log(f"PDF 생성 실패, Markdown만 반환: {type(exc).__name__}: {exc}")
+        _log(f"PDF 생성 실패, Markdown만 저장: {type(exc).__name__}: {exc}")
+    out_dir = Path(os.getenv("REPORT_OUTPUT_DIR", PROJECT_ROOT / "outputs"))
+    stem = os.getenv("REPORT_FILE_STEM", "investment_report")
+    paths = save_outputs(md_text, pdf_bytes, out_dir, stem)
+    _log(
+        f"저장: {paths['markdown']}"
+        + (f", {paths['pdf']} ({pages}쪽)" if paths["pdf"] else "")
+    )
 
-    for item, ok in check_report(md_text, pages):
+    checks = check_report(md_text, pages)
+    if judge_log and judge_log.get("rounds"):
+        (out_dir / f"{stem}_judge.json").write_text(
+            json.dumps(judge_log, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+        _log(_judge_summary(judge_log))
+        last = judge_log["rounds"][-1]
+        if "grades" in last:
+            checks.append(("Judge 검증 완료 (미달 부분은 근거 문장으로 대체)", True))
+    for item, ok in checks:
         _log(f"{'✔' if ok else '✘'} {item}")
     return {"final_report": md_text}
