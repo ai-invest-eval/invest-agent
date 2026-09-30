@@ -25,6 +25,7 @@ uv run python --version
 │   ├── agents/
 │   ├── rag/
 │   ├── tools/
+│   ├── config.py         # 공통 기본값과 실행 한도 계산
 │   ├── graph.py          # 그래프 연결 TODO
 │   ├── schemas.py
 │   └── state.py
@@ -82,3 +83,16 @@ uv run python app.py --agent 3a --state samples/tech_state.json
 
 `src/graph.py`에 노드 연결과 후보 반복 TODO가 있습니다.
 현재 `uv run python app.py`는 골격 안내만 출력하며 전체 평가는 실행하지 않습니다.
+
+## 실행 설정
+
+최대 후보 수는 기본 15개입니다. `.env`의 `MAX_CANDIDATES`로 변경하거나 실행 옵션을 지정합니다.
+실행 옵션이 환경변수보다 우선하고, 샘플 State의 후보 상한도 이번 실행 설정을 따릅니다.
+
+```bash
+uv run python app.py --agent 1 --max-candidates 10
+```
+
+전체 그래프 실행 한도는 최대 후보 수 × 8 + 10으로 계산합니다(기본 130).
+계산식은 통합 담당자가 실제 연결 단계와 재시도 예산에 맞춰 조정합니다.
+Agent 1은 최초 탐색 후 후보를 확정하고, `5 → 1` 재진입에서는 평가 이력을 보고 다음 후보를 선택합니다.
