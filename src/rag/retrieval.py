@@ -96,9 +96,13 @@ class HybridRetriever:
                 "현재 PDF/설정의 색인이 없습니다. python -m src.rag.build_index 실행"
             )
         self.agent, self.model = agent, model
-        self.chunks = json.loads((directory / "chunks.json").read_text())
+        self.chunks = json.loads(
+            (directory / "chunks.json").read_text(encoding="utf-8")
+        )
         self.index = faiss.read_index(str(directory / "dense.faiss"))
-        self.lexical = json.loads((directory / "tokens.json").read_text())
+        self.lexical = json.loads(
+            (directory / "tokens.json").read_text(encoding="utf-8")
+        )
         if len(self.chunks) != self.index.ntotal or len(self.lexical) != len(
             self.chunks
         ):
