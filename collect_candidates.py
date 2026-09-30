@@ -95,7 +95,7 @@ def save_collection(
     collection: dict[str, Any], directory: Path, *, prefix: str = "discovery"
 ) -> Path:
     # 저장 종류만 구분하며 파일 경로나 덮어쓰기를 허용하지 않는다.
-    if prefix not in ("discovery", "search_plan", "candidate_leads"):
+    if prefix not in ("discovery", "search_plan", "candidate_leads", "qualification"):
         raise ValueError("지원하지 않는 저장 종류입니다.")
     directory.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
