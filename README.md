@@ -83,17 +83,23 @@ uv run python app.py --agent 3a --state samples/tech_state.json
 
 ## Agent 1 원본 검색 수집
 
-`.env`의 `TAVILY_API_KEY`를 사용해 국내 3개·해외 3개 검색어로 원본을 수집합니다.
+`.env`의 `TAVILY_API_KEY`로 설계서의 지정 소스를 먼저 검색합니다.
+스타트업레시피 3개·Cure Funding Tracker 1개·YC 2개 검색어를 각각 해당 도메인으로 제한합니다.
 현재는 Tavily 수집 단계이며 OpenAI 호출·후보 추출·중복 제거·자격 검증은 하지 않습니다.
 
 ```bash
 uv run python collect_candidates.py
+uv run python collect_candidates.py --query "AI 신약 투자" --include-domain startuprecipe.co.kr
 uv run python collect_candidates.py --query "AI drug discovery Series B startups" --max-results 5
 uv run python -m unittest discover -s tests -v
 ```
 
 - 기본 검색은 advanced, 검색어당 최대 10건, 요청 타임아웃 30초입니다.
-- `--query`를 반복해서 지정하면 기본 검색어 대신 사용합니다. `--keyword`는 기본 국내 검색어에 반영되며 해외 검색어는 현재 AI 신약개발 분야로 고정됩니다.
+- `--keyword`는 국내 검색어, `--english-keyword`는 해외 소스 검색어에 반영됩니다.
+- `--query`를 반복하면 기본 검색 대신 실행합니다. `--include-domain`을 함께 지정하면 해당 도메인으로 제한하고, 생략하면 일반 검색입니다. 기본 실행은 소스가 비었다고 자동 일반 검색으로 우회하지 않습니다.
+- 검색 계획은 `src/agents/agent1_sources.py`에 있어 최종 Agent 1에서도 재사용할 수 있습니다. `collect_candidates.py`는 원본 점검용 실행 파일입니다.
+- 각 검색에 source_key/source_scope/source_url/include_domains를 기록합니다. 해외 탐색 소스에도 한국 기업이 있을 수 있으므로 소스 범위로 기업 국적·투자 시장을 추정하지 않습니다.
+- 지정 소스 URL·수집 한계는 [Agent 1 탐색 소스](docs/agent1_sources.md)를 참고합니다. 공개 페이지 검색이며 각 사이트 자체 API나 전체 DB 다운로드가 아닙니다.
 - 원본 응답의 제목·URL·검색 발췌·본문·점수와 검색어를 `outputs/discovery/` JSON에 보존합니다. 외부 페이지 내용은 데이터로 취급하며 그 안의 지시문을 실행하지 않습니다.
 - 동일 페이지가 여러 검색어에 잡혀도 원본에는 그대로 남깁니다. 본문을 Tavily가 제공하지 못하면 없는 그대로 보존하며 내용을 생성하지 않습니다.
 - 일부 실패는 성공한 결과와 함께 저장하고, 전부 실패하면 종료 코드 1을 반환합니다. 실패를 후보 없음으로 처리하지 않습니다.
