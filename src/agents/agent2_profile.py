@@ -753,6 +753,15 @@ class CompanyProfileAgent:
         else:
             subsidiary = None
 
+        # 1번이 근거와 함께 자격(비상장·Exit 전·대기업 자회사 아님·Seed~Series C)을
+        # 검증한 후보다. 2번 검색에서 판단 근거를 못 찾았다고(None) 자격 미확인으로
+        # 되돌리지 않고 1번 검증 결과를 이어받는다. 2번이 반대 사실(True)을 찾으면 그대로 둔다.
+        verified_by_search = bool(selected.get("stage") and selected.get("source_url"))
+        if not_eligible is None and verified_by_search:
+            not_eligible = False
+        if subsidiary is None and verified_by_search:
+            subsidiary = False
+
         clinical = ri.clinical_failure.value
         if clinical is None and pipeline == []:
             clinical = False  # 자체 파이프라인 없음이 확인됨 → 임상 실패 대상 없음
