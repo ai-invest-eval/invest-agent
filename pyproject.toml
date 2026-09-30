@@ -9,10 +9,12 @@ dependencies = [
     "langchain-openai==1.0.1",
     "langchain-tavily==0.2.12",
     "langgraph==1.0.9",
+    "markdown>=3.11",
     "openai==2.6.1",
     "pydantic==2.12.3",
     "python-dotenv==1.2.1",
     "tavily-python==0.7.12",
+    "weasyprint>=70.0",
 ]
 
 [project.optional-dependencies]
