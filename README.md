@@ -66,7 +66,7 @@ flowchart TD
 | Kiwi BM25 | 0.333 | 0.542 | 0.708 | 0.470 |
 | Dense + BM25 RRF | 0.542 | 0.667 | 0.792 | 0.619 |
 
-하이브리드는 이 개발셋에서 Hit@1·MRR을 높였지만 **Hit@3·5는 Dense보다 낮습니다.** 이는 작은 개발셋 결과이지 투자 평가의 타당성 검증이 아닙니다. 설계서의 **임베딩 4종 비교 실험은 아직 완료되지 않았습니다.**
+하이브리드는 이 개발셋에서 Hit@1·MRR을 높였지만 **Hit@3·5는 Dense보다 낮습니다.** 이는 작은 개발셋 결과이지 투자 평가의 타당성 검증이 아닙니다.
 
 ## 4. 공통 State와 투자 판단
 
@@ -108,7 +108,7 @@ flowchart TD
 └── pyproject.toml / uv.lock / .env.example
 ```
 
-[uv](https://docs.astral.sh/uv/getting-started/installation/)와 Python **3.11.11**이 필요합니다. `--extra rag`는 PDF·FAISS·임베딩 의존성을 함께 설치합니다. 실제 탐색·분석에는 `.env`의 `OPENAI_API_KEY`와 `TAVILY_API_KEY`가 필요합니다. `.env`는 Git에서 제외됩니다.
+[uv](https://docs.astral.sh/uv/getting-started/installation/)와 Python **3.11.11**이 필요합니다. `--extra rag`는 PDF·FAISS·임베딩 의존성을 함께 설치합니다.
 
 ```bash
 uv python install 3.11.11
@@ -134,27 +134,13 @@ uv run --extra rag python -m src.rag.evaluate
 
 6번은 Markdown → HTML → WeasyPrint로 PDF를 만듭니다. 시스템 Pango가 필요합니다(macOS: `brew install pango`; 다른 OS는 [설치 안내](https://doc.courtbouillon.org/weasyprint/stable/first_steps.html)). 기본 결과는 `outputs/investment_report.md`와 `.pdf`이며, LLM Judge를 실행한 경우에만 `_judge.json`이 추가됩니다. `REPORT_OUTPUT_DIR`·`REPORT_FILE_STEM`으로 저장 위치와 이름을 바꿀 수 있습니다. 생성 파일과 색인은 Git에서 제외됩니다.
 
-## 6. 평가표 기준 점검
-
-평가표의 배점은 **설계 구현 15 · Agent 구현 15 · RAG Pipeline 20 · 코드 구조 10 · 실행 재현성 10 · 보고서 20 · README 10 = 100점**입니다. 아래는 자체 점검이며 채점 결과를 미리 주장하지 않습니다.
-
-| 평가 항목 | 현재 확인한 증거 | 남은 확인 사항 |
-| --- | --- | --- |
-| 설계 구현 충실도 (15) | 설계서의 1→2→(3-A·3-B)→4→5→6, 후보 반복과 공통 State를 코드·Graph 테스트에 반영 | 실제 API 실행에서 노드 간 데이터 적합성 확인 |
-| Agent 구현 (15) | 역할별 노드 분리, 3-A·3-B 병렬 합류, 근거·결측·판정 책임 분리 | 실제 기업 전체 후보 반복 실행 확인 |
-| RAG Pipeline (20) | 15개 PDF, 로딩·청킹·BGE-M3/FAISS·Kiwi BM25·RRF·근거 판단·재검색 코드 및 24문항 개발셋 기록 | 임베딩 4종 비교 완료 |
-| 코드 구조·프로젝트 구성 (10) | `src/agents`, `src/rag`, `src/tools`, `app.py`, `tests`, `samples` 분리 | 팀 PR에서 통합 코드 리뷰 |
-| 실행 결과·재현성 (10) | 고정 의존성 `uv.lock`, 색인·전체 CLI 명령, 자동 테스트, 가상 이력의 PDF 생성 확인 | API 키를 넣은 라이브 처음부터 끝까지 재현 |
-| Output - 보고서 (20) | 가상 5후보 보고서 3쪽, 무추천 보고서 2쪽, 순위·관문·SUMMARY·REFERENCE 확인 | 실제 기업 자료로 생성한 보고서 검토 |
-| Output - README (10) | 목적·차별점·구조·실행 방법·근거와 한계·보고서 요점·Lessons Learned를 이 파일에 수록 | 발표 전 최신 코드·시연 환경과 최종 대조 |
-
-## 7. 투자 보고서의 핵심 포인트
+## 6. 투자 보고서의 핵심 포인트
 
 **아래는 `samples/report_state.json`의 가상 기업 자료로 만든 시연 결과입니다.** 후보 5곳을 평가해 2곳 통과·3곳 보류, 통과 1위인 “가상 바이오 A”(84.8점)를 추천했습니다. “가상 랩스 E”는 82.0점이어도 **대기업 자회사 관문** 때문에 보류됩니다. 점수만 높으면 추천하는 방식이 아님을 보여줍니다. 별도 무통과 샘플은 “투자 추천 없음”을 출력합니다.
 
 보고서는 첫 페이지에 결론·추천 이유·핵심 리스크·전체 순위를 두고, 이어서 기술 검증, 시장, 경쟁, 팀, 실적·투자조건, 위험과 한계, 실제 사용 출처를 제시합니다. 우리 환경에서 가상 통과 사례는 **3쪽**, 무통과 사례는 **2쪽** PDF로 생성됐습니다. 점수와 순위는 코드가 쓰고, LLM을 사용할 때는 Judge가 문장의 충실성·관련성을 검사합니다. 키가 없으면 평가 이력의 근거 문장으로 대체합니다. 이 시연은 **형식·흐름 검증**이며 실제 투자 심사 결론이 아닙니다.
 
-## 8. Lessons Learned
+## 7. Lessons Learned
 
 ### 검색된 문장과 기업의 경쟁력 증거는 다릅니다 (박민규)
 
