@@ -122,6 +122,7 @@ Reference 필드는 다음과 연결한다.
 ## 9. 사업 모델과 대표 시장 (개선본 v4)
 
 - Agent 2만 `business_model`을 작성한다. 3-B·5번은 읽기만 하고 재분류하지 않는다.
+- `startup_profile.pipeline`에는 자체 권리 물질만 기록한다. 기술이전·설계 용역 물질은 `partnerships`에만 기록한다. 권리 여부 필드 추가 없이 기존 계약의 의미를 명확히 하며, `pipeline=[]`는 확인된 자체 파이프라인 없음이다.
 - 권리 보유 자체 후보물질 1개 이상이면 `pipeline`. 혼합 사업도 동일하며 제약사 소유 공동개발 물질은 자체로 세지 않는다.
 - 자체 후보물질 없이 제약사 대상 서비스·소프트웨어가 주 사업이면 `platform`. 재검색 후 확인 불가면 `unknown`.
 - `business_model_basis={"reason": 근거 문장, "source": URL 또는 None}`을 기록하고 실제 근거 출처는 `references`(agent: profile)에 추가한다. URL 없는 RAG 원문 출처도 Reference에 보존한다.
