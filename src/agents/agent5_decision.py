@@ -7,6 +7,7 @@ LLM(Judge): 영역별 6회 호출로 질문별 점수·근거·출처 번호·�
 
 import copy
 import json
+import re
 from datetime import datetime
 from typing import Literal
 from zoneinfo import ZoneInfo
@@ -151,11 +152,41 @@ def call_judge(llm, prompts) -> dict:
     )
 
 
+# ── 분석 글 출처 표기 연결 ───────────────────────────────────
+_SOURCE_LINE = re.compile(
+    r"^- \[([^\]]+)\] (.+?) / (\S+) / 원문 쪽 (.+)$", re.MULTILINE
+)
+
+
+def analysis_source_aliases(state: InvestmentState, refs: list[dict]) -> dict:
+    """분석 글 '사용 출처' 목록의 표기(예: M6:p1:t0)를 State 출처와 연결한다.
+
+    제목·쪽(RAG) 또는 URL(웹)이 같은 출처만 연결하고, 못 찾으면 연결하지 않는다.
+    """
+    aliases = {}
+    for key in ("tech_analysis", "market_analysis"):
+        for tag, title, url, page in _SOURCE_LINE.findall(state.get(key) or ""):
+            for ref in refs:
+                same_rag = (
+                    ref.get("source") == "RAG"
+                    and ref.get("title") == title.strip()
+                    and str(ref.get("page")) == page.strip()
+                )
+                same_web = ref.get("source") == "web" and ref.get("url") == url
+                if same_rag or same_web:
+                    aliases[tag] = ref
+                    break
+    return aliases
+
+
 # ── 판정 조립 ────────────────────────────────────────────────
 def evaluate(state: InvestmentState, llm) -> InvestmentDecision:
     profile = state["startup_profile"]
     refs = scoring.collect_references(state)
     ref_catalog = {f"R{i + 1}": ref for i, ref in enumerate(refs)}
+    # 3-A·3-B 분석 글은 출처를 [M6:p1:t0]처럼 표기한다. 같은 출처를 그 표기로도
+    # 찾을 수 있게 목록에 추가해, LLM이 분석 글의 표기를 그대로 인용해도 연결되게 한다.
+    ref_catalog.update(analysis_source_aliases(state, refs))
 
     raw = call_judge(llm, build_prompts(state, ref_catalog))
     evidence = scoring.finalize_evidence(

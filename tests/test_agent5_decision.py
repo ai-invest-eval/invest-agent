@@ -295,3 +295,19 @@ def test_unknown_business_model_does_not_ask_qd(state):
     state["startup_profile"]["business_model"] = "unknown"
     market = next(p for a, _, p in build_prompts(state, {}) if a == "market")
     assert "[QD]" not in market and "질문 QE, QF 각각" in market
+
+
+def test_analysis_source_tag_links_to_reference():
+    from src.agents.agent5_decision import analysis_source_aliases
+
+    rag = {
+        "company": "가상 바이오 A",
+        "agent": "market",
+        "title": "글로벌 AI 기반 생명공학 시장 현황 및 전망(KBIOIS 브리프 Vol.91)",
+        "source": "RAG",
+        "page": 1,
+    }
+    state = {
+        "market_analysis": "## 사용 출처\n- [M6:p1:t0] 글로벌 AI 기반 생명공학 시장 현황 및 전망(KBIOIS 브리프 Vol.91) / https://www.kbiois.or.kr / 원문 쪽 1"
+    }
+    assert analysis_source_aliases(state, [rag]) == {"M6:p1:t0": rag}
