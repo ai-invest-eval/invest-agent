@@ -1,0 +1,23 @@
+{
+  "input_keyword": "후보 전환 검증용 가상 기업",
+  "candidate_startups": [
+    {
+      "name": "샘플기업 A",
+      "country": null,
+      "stage": "시드",
+      "stage_region": null,
+      "stage_original": "Seed",
+      "source_url": null
+    },
+    {
+      "name": "샘플기업 B",
+      "country": null,
+      "stage": "시리즈 A",
+      "stage_region": null,
+      "stage_original": "Series A",
+      "source_url": null
+    }
+  ],
+  "evaluation_history": [],
+  "references": []
+}

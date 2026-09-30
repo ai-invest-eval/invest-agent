@@ -36,7 +36,7 @@ def build_graph():
     #     "investment_decision", route_after_decision,
     #     {"remaining": "startup_search", "done": "report_writer"},
     # )
-    # TODO(1번 담당): 재진입 시 다음 후보 선택과 현재 분석값 초기화
+    # startup_search가 재진입 시 다음 후보 선택과 현재 분석값 초기화를 처리한다.
     # TODO(통합 담당): 후보 전환 시 references/evaluation_history 누적값 보존
     # graph.add_edge("report_writer", END)
     # return graph.compile()
