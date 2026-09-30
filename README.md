@@ -23,7 +23,7 @@ uv run python --version
 ├── app.py
 ├── src/
 │   ├── agents/
-│   ├── rag/
+│   ├── rag/              # build_index.py: 색인 구현 TODO
 │   ├── tools/
 │   ├── config.py         # 공통 기본값과 실행 한도 계산
 │   ├── graph.py          # 그래프 연결 TODO
@@ -79,10 +79,14 @@ uv run python app.py --agent 3a --state samples/tech_state.json
 현재 에이전트는 미구현 골격이므로 호출 시 미구현 안내로 종료합니다.
 각 함수 구현 후에는 해당 노드의 반환 데이터만 JSON으로 출력합니다.
 
-## 전체 실행 골격
+## 통합 및 RAG 구현 TODO
 
-`src/graph.py`에 노드 연결과 후보 반복 TODO가 있습니다.
-현재 `uv run python app.py`는 골격 안내만 출력하며 전체 평가는 실행하지 않습니다.
+- `src/graph.py`: 노드 import·등록, 기술/시장 병렬 합류, 후보 반복과 종료 분기를 연결합니다.
+- `src/rag/build_index.py`: Agent 3-A/3-B 담당자가 PDF 로딩 → 토큰 청킹 → BGE-M3 Dense(FAISS) + Kiwi BM25 색인 → RRF 검색 결과 병합을 구현합니다.
+- `app.py`: 색인 준비 → 초기 State → 그래프 실행 → 보고서 출력 순서로 통합합니다.
+
+현재 `uv run python app.py`는 골격 안내만 출력하며 전체 평가나 색인을 실행하지 않습니다.
+색인용 라이브러리와 청킹·재사용 정책은 RAG 담당자가 구현하면서 확정합니다.
 
 ## 실행 설정
 
