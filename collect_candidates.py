@@ -4,6 +4,7 @@ import argparse
 import json
 import os
 from collections.abc import Callable
+from dataclasses import asdict
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal
@@ -11,23 +12,14 @@ from uuid import uuid4
 
 from dotenv import load_dotenv
 
+from src.agents.agent1_sources import DiscoverySearchRequest, build_search_requests
 from src.config import PROJECT_ROOT
 from src.tools.web_search import TavilySearch, WebSearchError
 
 
 def build_queries(keyword: str) -> list[str]:
-    if not keyword.strip():
-        raise ValueError("검색 키워드를 입력하세요.")
-    keyword = keyword.strip()
-    # 첫 원본 점검은 고정 6개로 시작. LLM 검색어 계획은 다음 탐색 구현에서 연결.
-    return [
-        f"{keyword} 국내 스타트업 시리즈 투자 유치",
-        f"{keyword} 자체 파이프라인 후보물질 바이오 기업",
-        f"{keyword} 플랫폼 제약사 공동연구 기업",
-        "AI drug discovery startups seed series A series B series C funding",
-        "AI drug discovery biotech startups proprietary pipeline clinical",
-        "AI drug discovery platform startups pharmaceutical partnerships",
-    ]
+    """기존 호출용 검색어 목록. 실제 수집은 도메인 포함 검색 계획을 사용한다."""
+    return [request.query for request in build_search_requests(keyword)]
 
 
 def redact_secrets(value: Any, secrets: list[str]) -> Any:
@@ -52,26 +44,34 @@ def redact_secrets(value: Any, secrets: list[str]) -> Any:
 
 def collect_searches(
     search: TavilySearch,
-    queries: list[str],
+    queries: list[str | DiscoverySearchRequest],
     *,
     max_results: int = 10,
     search_depth: Literal["basic", "advanced"] = "advanced",
     progress: Callable[[str], None] | None = None,
 ) -> dict[str, Any]:
-    if not queries or any(not query.strip() for query in queries):
+    requests = [
+        DiscoverySearchRequest(query=item) if isinstance(item, str) else item
+        for item in queries
+    ]
+    if not requests or any(not request.query.strip() for request in requests):
         raise ValueError("비어 있지 않은 검색어 목록이 필요합니다.")
     searches: list[dict[str, Any]] = []
-    for index, query in enumerate(queries, start=1):
+    for index, request in enumerate(requests, start=1):
         if progress:
-            progress(f"검색 {index}/{len(queries)} 진행 중")
+            progress(f"검색 {index}/{len(requests)} [{request.source_key}] 진행 중")
+        record = asdict(request)
         try:
             response = search.search(
-                query, max_results=max_results, search_depth=search_depth
+                request.query,
+                max_results=max_results,
+                search_depth=search_depth,
+                include_domains=request.include_domains or None,
             )
         except WebSearchError as exc:
-            searches.append({"query": query, "status": "error", "error": str(exc)})
+            searches.append({**record, "status": "error", "error": str(exc)})
         else:
-            searches.append({"query": query, "status": "ok", "response": response})
+            searches.append({**record, "status": "ok", "response": response})
     successes = sum(item["status"] == "ok" for item in searches)
     return {
         "collected_at": datetime.now(UTC).isoformat(),
@@ -105,8 +105,14 @@ def main() -> None:
     load_dotenv(PROJECT_ROOT / ".env")
     parser = argparse.ArgumentParser(description="Tavily 후보 탐색 원본 수집")
     parser.add_argument("--keyword", default="AI 신약개발")
+    parser.add_argument("--english-keyword", default="AI drug discovery")
     parser.add_argument(
         "--query", action="append", help="지정 검색어. 여러 번 사용 가능"
+    )
+    parser.add_argument(
+        "--include-domain",
+        action="append",
+        help="--query에 적용할 도메인. 여러 번 지정 가능",
     )
     parser.add_argument("--max-results", type=int, default=10)
     parser.add_argument(
@@ -120,19 +126,33 @@ def main() -> None:
     if not 1 <= args.max_results <= 20:
         parser.error("--max-results는 1~20 사이여야 합니다.")
     try:
-        queries = args.query if args.query else build_queries(args.keyword)
-        if any(not query.strip() for query in queries):
+        if args.include_domain and not args.query:
+            raise ValueError("--include-domain은 --query와 함께 사용하세요.")
+        queries = (
+            [
+                DiscoverySearchRequest(
+                    query=query, include_domains=tuple(args.include_domain or [])
+                )
+                for query in args.query
+            ]
+            if args.query
+            else build_search_requests(args.keyword, args.english_keyword)
+        )
+        if any(not request.query.strip() for request in queries):
             raise ValueError("검색어를 입력하세요.")
         search = TavilySearch(os.getenv("TAVILY_API_KEY"), timeout=args.timeout)
     except ValueError as exc:
         parser.error(str(exc))
-    collection = collect_searches(
-        search,
-        queries,
-        max_results=args.max_results,
-        search_depth=args.search_depth,
-        progress=lambda message: print(message, flush=True),
-    )
+    try:
+        collection = collect_searches(
+            search,
+            queries,
+            max_results=args.max_results,
+            search_depth=args.search_depth,
+            progress=lambda message: print(message, flush=True),
+        )
+    except ValueError as exc:
+        parser.error(str(exc))
     collection = redact_secrets(
         collection,
         [os.getenv("TAVILY_API_KEY", ""), os.getenv("OPENAI_API_KEY", "")],
