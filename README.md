@@ -100,6 +100,22 @@ uv run python -m unittest discover -s tests -v
 - 검색 계획은 `src/agents/agent1_sources.py`에 있어 최종 Agent 1에서도 재사용할 수 있습니다. `collect_candidates.py`는 원본 점검용 실행 파일입니다.
 - 각 검색에 source_key/source_scope/source_url/include_domains를 기록합니다. 해외 탐색 소스에도 한국 기업이 있을 수 있으므로 소스 범위로 기업 국적·투자 시장을 추정하지 않습니다.
 - 지정 소스 URL·수집 한계는 [Agent 1 탐색 소스](docs/agent1_sources.md)를 참고합니다. 공개 페이지 검색이며 각 사이트 자체 API나 전체 DB 다운로드가 아닙니다.
+
+### LLM 검색 계획 및 미검증 후보 추출
+
+```bash
+uv run python discover_candidates.py --plan-only
+uv run python discover_candidates.py --max-search-requests 12
+uv run python discover_candidates.py --input outputs/discovery/discovery_실제파일명.json
+```
+
+- `discover_candidates.py`는 가변 검색 계획 → Tavily 수집 → 후보 추출 → 근거 검사 → 동일 기업 병합을 수행합니다. 다른 에이전트나 그래프 없이 실행할 수 있습니다.
+- 검색 호출 상한은 `MAX_DISCOVERY_SEARCH_REQUESTS` 또는 `--max-search-requests`로 지정합니다. 기본 12, 최소 3이며 **최종 후보 수 기본 15와 별개**입니다. 상한만큼 반드시 검색하지 않습니다.
+- `collect_candidates.py`의 기존 고정 6개 검색은 원본 점검용으로 유지합니다. 가변 검색 계획은 새 실행 파일을 사용하세요.
+- `--plan-only`는 OpenAI만 호출하며, `--input`은 기존 원본을 재사용해 Tavily를 호출하지 않습니다. 기본 실행에는 두 API 키가 필요합니다.
+- 검색 계획(`search_plan_*`), 수집 원본(`discovery_*`), 추출 결과(`candidate_leads_*`)를 각각 JSON으로 저장합니다. 추출 결과에는 원문 조각과 근거 발췌를 보존합니다.
+- 결과는 `extracted_unverified` 상태입니다. 상장·인수·투자 단계·대기업 자회사 여부 검증과 공통 State 연결은 아직 구현하지 않았습니다. 국가·라운드가 충돌하면 임의 선택하지 않고 `None`으로 남깁니다.
+- 검색 원문에 없는 문서 ID·발췌는 제외하고, 원문에서 확인되지 않는 공식 사이트는 `None`으로 둡니다. 이 검사는 원문의 사실성이나 기업 자격까지 보증하지 않습니다.
 - 원본 응답의 제목·URL·검색 발췌·본문·점수와 검색어를 `outputs/discovery/` JSON에 보존합니다. 외부 페이지 내용은 데이터로 취급하며 그 안의 지시문을 실행하지 않습니다.
 - 동일 페이지가 여러 검색어에 잡혀도 원본에는 그대로 남깁니다. 본문을 Tavily가 제공하지 못하면 없는 그대로 보존하며 내용을 생성하지 않습니다.
 - 일부 실패는 성공한 결과와 함께 저장하고, 전부 실패하면 종료 코드 1을 반환합니다. 실패를 후보 없음으로 처리하지 않습니다.
