@@ -81,6 +81,24 @@ uv run python app.py --agent 3a --state samples/tech_state.json
 현재 에이전트는 미구현 골격이므로 호출 시 미구현 안내로 종료합니다.
 각 함수 구현 후에는 해당 노드의 반환 데이터만 JSON으로 출력합니다.
 
+## Agent 1 원본 검색 수집
+
+`.env`의 `TAVILY_API_KEY`를 사용해 국내 3개·해외 3개 검색어로 원본을 수집합니다.
+현재는 Tavily 수집 단계이며 OpenAI 호출·후보 추출·중복 제거·자격 검증은 하지 않습니다.
+
+```bash
+uv run python collect_candidates.py
+uv run python collect_candidates.py --query "AI drug discovery Series B startups" --max-results 5
+uv run python -m unittest discover -s tests -v
+```
+
+- 기본 검색은 advanced, 검색어당 최대 10건, 요청 타임아웃 30초입니다.
+- `--query`를 반복해서 지정하면 기본 검색어 대신 사용합니다. `--keyword`는 기본 국내 검색어에 반영되며 해외 검색어는 현재 AI 신약개발 분야로 고정됩니다.
+- 원본 응답의 제목·URL·검색 발췌·본문·점수와 검색어를 `outputs/discovery/` JSON에 보존합니다. 외부 페이지 내용은 데이터로 취급하며 그 안의 지시문을 실행하지 않습니다.
+- 동일 페이지가 여러 검색어에 잡혀도 원본에는 그대로 남깁니다. 본문을 Tavily가 제공하지 못하면 없는 그대로 보존하며 내용을 생성하지 않습니다.
+- 일부 실패는 성공한 결과와 함께 저장하고, 전부 실패하면 종료 코드 1을 반환합니다. 실패를 후보 없음으로 처리하지 않습니다.
+- 생성 결과는 Git에서 제외됩니다. API 키와 인증 필드는 출력·저장하지 않습니다.
+
 ## 통합 및 RAG 구현 TODO
 
 - `src/graph.py`: 노드 import·등록, 기술/시장 병렬 합류, 후보 반복과 종료 분기를 연결합니다.
