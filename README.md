@@ -32,6 +32,7 @@ uv run python --version
 ├── data/
 │   ├── technology/       # 기술요약 PDF
 │   └── market/           # 시장성 평가 PDF
+├── docs/                 # 투자평가기준 및 공통 데이터 계약
 ├── .env.example
 ├── .gitignore
 ├── .pre-commit-config.yaml
@@ -58,6 +59,7 @@ uv run python --version
 구현 파일과 하위 디렉터리는 필요할 때 추가합니다.
 
 커밋과 머지 규칙은 [CONTRIBUTING.md](CONTRIBUTING.md)를 참고합니다.
+공통 데이터 형식은 [데이터 계약](docs/data_contracts.md), 채점 기준은 [투자평가기준 v4](docs/investment_criteria_v4.md)를 참고합니다.
 
 ## 개별 에이전트 개발
 
