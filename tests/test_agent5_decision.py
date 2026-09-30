@@ -295,3 +295,26 @@ def test_unknown_business_model_does_not_ask_qd(state):
     state["startup_profile"]["business_model"] = "unknown"
     market = next(p for a, _, p in build_prompts(state, {}) if a == "market")
     assert "[QD]" not in market and "질문 QE, QF 각각" in market
+
+
+def test_chunk_id_ref_is_resolved_to_catalog_number():
+    from src.agents import agent5_scoring as sc
+
+    ref = {"title": "시장 보고서", "page": 1, "company": "가상 바이오"}
+    state = {
+        "market_analysis": "## 사용 출처\n- [M6:p1:t0] 시장 보고서 / https://x.invalid / 원문 쪽 1"
+    }
+    aliases = sc.chunk_aliases(state, {"R1": ref})
+    assert aliases == {"M6:p1:t0": "R1"}
+    raw = {
+        "QE": {
+            "score": 4,
+            "reason": "r",
+            "ref_ids": ["M6:p1:t0"],
+            "quote": "시장 제약 요인",
+            "missing": False,
+        }
+    }
+    corpus = sc._squash("시장 제약 요인")
+    ev = sc.finalize_evidence(raw, {"R1": ref}, corpus, "platform", aliases)
+    assert ev["QE"]["missing"] is False and ev["QE"]["references"] == [ref]

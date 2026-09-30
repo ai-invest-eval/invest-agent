@@ -53,6 +53,24 @@ def collect_references(state: dict) -> list[dict]:
     return out
 
 
+_USED_SOURCE = re.compile(r"^- \[([^\]]+)\] (.+?) / .+? / 원문 쪽 (\S+)$", re.MULTILINE)
+
+
+def chunk_aliases(state: dict, ref_catalog: dict[str, dict]) -> dict[str, str]:
+    """분석 글의 '사용 출처' 줄([M6:p1:t0] 제목 / URL / 원문 쪽 1)을 출처 목록 번호로 잇는다.
+
+    판정 LLM이 출처 목록의 R번호 대신 분석 글 속 청크 ID를 적어도 같은 제목·쪽이면 인정한다.
+    """
+    aliases = {}
+    for key in ("tech_analysis", "market_analysis", "competitor_analysis"):
+        for chunk_id, title, page in _USED_SOURCE.findall(state.get(key) or ""):
+            for rid, ref in ref_catalog.items():
+                if ref.get("title") == title and str(ref.get("page")) == page:
+                    aliases[chunk_id] = rid
+                    break
+    return aliases
+
+
 # ── 2. 근거 문장 대조 ─────────────────────────────────────────
 def _squash(text: str) -> str:
     return re.sub(r"\s+", "", unicodedata.normalize("NFC", text)).lower()
@@ -91,7 +109,11 @@ def _missing(question: str, note: str | None = None) -> dict:
 
 
 def finalize_evidence(
-    raw: dict, ref_catalog: dict[str, dict], corpus: str, business_model: str | None
+    raw: dict,
+    ref_catalog: dict[str, dict],
+    corpus: str,
+    business_model: str | None,
+    aliases: dict[str, str] | None = None,
 ) -> dict:
     """LLM 출력(raw: 질문 → dict)을 QuestionEvidence 15개로 확정한다.
 
@@ -110,7 +132,8 @@ def finalize_evidence(
             evidence[q] = _missing(q)
             continue
         score = item.get("score")
-        refs = [ref_catalog[i] for i in item.get("ref_ids") or [] if i in ref_catalog]
+        ids = [(aliases or {}).get(i, i) for i in item.get("ref_ids") or []]
+        refs = [ref_catalog[i] for i in dict.fromkeys(ids) if i in ref_catalog]
         if score not in (1, 2, 3, 4, 5):
             evidence[q] = _missing(q, "점수 없음")
         elif not refs:
