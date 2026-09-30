@@ -78,7 +78,7 @@ uv run --extra rag python app.py --agent 3a --state samples/state_agent3_pipelin
 
 `--agent` 값은 `1`, `2`, `3a`, `3b`, `4`, `5`, `6`입니다.
 샘플 파일은 담당자가 작성하며 위 경로는 예시입니다.
-3-A/3-B와 5번은 구현됐으며, 다른 에이전트는 아직 골격입니다.
+2·3-A·3-B·4·5·6번 구현이 반영됐으며, 전체 그래프 통합은 아직 남아 있습니다.
 각 함수 구현 후에는 해당 노드의 반환 데이터만 JSON으로 출력합니다.
 
 ## 통합 및 RAG 구현 TODO
@@ -113,3 +113,18 @@ uv run --extra rag python -m src.rag.evaluate
 ```
 
 실제 LLM 분석과 팀 통합 방법은 [실행 가이드](docs/taewoo_quickstart.md)를 참고합니다. extract 모드는 가상 기업의 배선 점검용 원문 발췌이며 투자 분석 결과가 아닙니다.
+
+## 보고서 생성 (Agent 6)
+
+Agent 6은 누적 평가 이력으로 보고서를 만들고 `outputs/investment_report.md`, `outputs/investment_report.pdf`에 저장합니다. PDF는 Markdown → HTML → WeasyPrint로 변환하며, 5쪽을 넘으면 문단 길이와 글자 크기를 줄여 다시 만듭니다.
+
+```bash
+# 가상 평가 이력 샘플로 단독 실행 (통과 2곳 / 통과 0곳)
+uv run python app.py --agent 6 --state samples/report_state.json
+uv run python app.py --agent 6 --state samples/report_state_no_pass.json
+```
+
+- 생성 결과는 **LLM-as-a-Judge**로 검증합니다. 소항목별 충실성(데이터에 있는 사실만 썼는가)·관련성(소항목 주제에 맞는가)을 1~5점으로 채점하고, 4점 미만인 부분만 1회 재작성합니다. 그래도 미달이면 평가 근거 문장으로 대체합니다. 채점 결과는 `outputs/investment_report_judge.json`에 저장됩니다.
+- `OPENAI_API_KEY`가 없거나 `REPORT_USE_LLM=0`이면 LLM 대신 평가 이력의 근거 문장으로 같은 목차를 채웁니다.
+- 저장 위치·파일명은 `REPORT_OUTPUT_DIR`, `REPORT_FILE_STEM` 환경변수로 바꿀 수 있습니다.
+- WeasyPrint는 Pango 시스템 라이브러리가 필요합니다. macOS: `brew install pango` (Homebrew 경로는 코드가 자동으로 추가), Windows: [MSYS2 설치 안내](https://doc.courtbouillon.org/weasyprint/stable/first_steps.html#windows) 참고. PDF 생성에 실패해도 Markdown 보고서는 반환합니다.
