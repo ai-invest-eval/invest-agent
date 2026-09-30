@@ -1,43 +1,82 @@
-"""전체 워크플로우 연결 골격. 통합 담당자가 TODO를 구현한다."""
+"""전체 투자 평가 그래프. 노드 계약과 후보 반복을 연결한다."""
 
-from langgraph.graph import END, START, StateGraph  # noqa: F401
+import sys
 
-# TODO(통합 담당): 연결 시 에이전트 import를 build_graph 내부에 추가
-# 개별 에이전트 개발 시 다른 에이전트를 import하지 않아도 된다.
-# from src.agents.agent1_search import startup_search
-# from src.agents.agent2_profile import company_profile
-# from src.agents.agent3a_tech import tech_analysis
-# from src.agents.agent3b_market import market_analysis
-# from src.agents.agent4_competitor import competitor_analysis
-# from src.agents.agent5_decision import investment_decision
-# from src.agents.agent6_report import report_writer
-from src.state import InvestmentState  # noqa: F401
+from langgraph.graph import END, START, StateGraph
+
+from src.agents.agent1_search import select_next_candidate
+from src.state import InvestmentState
 
 
-def build_graph():
-    """탐색 → 기업 요약 → 기술/시장 병렬 → 경쟁사 → 판단 → 보고서."""
+def route_after_search(state: InvestmentState) -> str:
+    """후보가 없으면 2~5번을 건너뛰고 빈 결과 보고서를 작성한다."""
+    return "company_profile" if state.get("selected_startup") else "report_writer"
 
-    # TODO(통합 담당): graph = StateGraph(InvestmentState)
-    # TODO(통합 담당): 각 함수로 graph.add_node(...) 등록
-    # graph.add_edge(START, "startup_search")
-    # TODO(통합 담당): 최초 탐색 결과가 없으면 보고서/종료로 분기
-    # graph.add_conditional_edges(
-    #     "startup_search", route_after_search,
-    #     {"selected": "company_profile", "empty": "report_writer"},
-    # )
-    # graph.add_edge("company_profile", "tech_analysis")
-    # graph.add_edge("company_profile", "market_analysis")
-    # graph.add_edge(["tech_analysis", "market_analysis"], "competitor_analysis")
-    # graph.add_edge("competitor_analysis", "investment_decision")
 
-    # TODO(통합 담당): 평가 이력에 없는 후보가 남으면 5 → 1, 없으면 5 → 6
-    # 통과/보류 판정과 관계없이 모든 후보를 평가한다.
-    # graph.add_conditional_edges(
-    #     "investment_decision", route_after_decision,
-    #     {"remaining": "startup_search", "done": "report_writer"},
-    # )
-    # startup_search가 재진입 시 다음 후보 선택과 현재 분석값 초기화를 처리한다.
-    # TODO(통합 담당): 후보 전환 시 references/evaluation_history 누적값 보존
-    # graph.add_edge("report_writer", END)
-    # return graph.compile()
-    raise NotImplementedError("통합 담당자: 에이전트 연결 및 후보 분기 구현 예정")
+def route_after_decision(state: InvestmentState) -> str:
+    """통과/보류에 관계없이 미평가 후보를 계속 처리한다."""
+    candidates = state.get("candidate_startups") or []
+    history = state.get("evaluation_history") or []
+    selected = state.get("selected_startup")
+    # 5번이 현재 기업을 기록하지 않으면 같은 기업을 반복하게 된다.
+    # 잘못된 반환을 무한 반복 대신 계약 오류로 바로 알린다.
+    if selected and select_next_candidate([selected], history) is not None:
+        raise ValueError("Agent 5가 현재 기업의 평가 이력을 반환하지 않았습니다.")
+    return (
+        "startup_search"
+        if select_next_candidate(candidates, history)
+        else "report_writer"
+    )
+
+
+def build_graph(prepare_indexes=None):
+    """1 → 2 → (3a·3b 병렬) → 4 → 5 → 다음 후보 또는 6."""
+    # 개별 실행에서는 선택한 에이전트만 import되도록 전체 노드는 여기서 로딩한다.
+    from src.agents.agent1_search import startup_search
+    from src.agents.agent2_profile import company_profile
+    from src.agents.agent3a_tech import tech_analysis
+    from src.agents.agent3b_market import market_analysis
+    from src.agents.agent4_competitor import competitor_analysis
+    from src.agents.agent5_decision import investment_decision
+    from src.agents.agent6_report import report_writer
+
+    indexes_prepared = False
+
+    def with_progress(name, node):
+        def run(state):
+            nonlocal indexes_prepared
+            if (
+                name == "company_profile"
+                and prepare_indexes
+                and not indexes_prepared
+                and state.get("selected_startup")
+            ):
+                prepare_indexes()
+                indexes_prepared = True
+            company = (state.get("selected_startup") or {}).get("name", "")
+            print(f"[pipeline] {name} {company}".rstrip(), file=sys.stderr, flush=True)
+            return node(state)
+
+        return run
+
+    graph = StateGraph(InvestmentState)
+    for name, node in (
+        ("startup_search", startup_search),
+        ("company_profile", company_profile),
+        ("tech_analysis", tech_analysis),
+        ("market_analysis", market_analysis),
+        ("competitor_analysis", competitor_analysis),
+        ("investment_decision", investment_decision),
+        ("report_writer", report_writer),
+    ):
+        graph.add_node(name, with_progress(name, node))
+    graph.add_edge(START, "startup_search")
+    graph.add_conditional_edges("startup_search", route_after_search)
+    graph.add_edge("company_profile", "tech_analysis")
+    graph.add_edge("company_profile", "market_analysis")
+    # 리스트 시작점은 두 병렬 노드가 모두 끝난 뒤 4번을 한 번만 실행한다.
+    graph.add_edge(["tech_analysis", "market_analysis"], "competitor_analysis")
+    graph.add_edge("competitor_analysis", "investment_decision")
+    graph.add_conditional_edges("investment_decision", route_after_decision)
+    graph.add_edge("report_writer", END)
+    return graph.compile()

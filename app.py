@@ -1,4 +1,4 @@
-"""전체 실행 골격 및 개별 에이전트 개발용 진입점."""
+"""전체 투자 평가 및 개별 에이전트 실행 진입점."""
 
 import argparse
 import json
@@ -27,9 +27,16 @@ AGENTS = {
 }
 
 
+def prepare_indexes() -> None:
+    """문서/설정이 같으면 기존 색인을 재사용한다. 개별 실행에는 필요 없다."""
+    from src.rag.build_index import build_indexes
+
+    build_indexes()
+
+
 def main() -> None:
     load_dotenv(PROJECT_ROOT / ".env")
-    parser = argparse.ArgumentParser(description="투자 평가 프로젝트 실행 골격")
+    parser = argparse.ArgumentParser(description="AI 신약개발 스타트업 투자 평가")
     parser.add_argument("--keyword", default="AI 신약개발 스타트업")
     parser.add_argument("--agent", choices=AGENTS, help="개발 중인 에이전트만 실행")
     parser.add_argument("--state", type=Path, help="개별 실행에 필요한 샘플 State JSON")
@@ -69,17 +76,24 @@ def main() -> None:
         print(json.dumps(update, ensure_ascii=False, indent=2))
         return
 
-    # TODO(3-A/3-B 담당): 색인 준비 구현 후 기존 인덱스 재사용 단계 연결
-    # from src.rag.build_index import build_indexes
-    # build_indexes()
-    # TODO(통합 담당): 아래 config를 사용해 그래프 실행 연결
-    # Agent 1은 그래프 안에서 최초 탐색하고, 5 → 1 재진입 시 다음 후보를 선택한다.
-    # from src.graph import build_graph
-    # result = build_graph().invoke(state, config=execution_config)
-    # TODO(6번 담당): Markdown 저장·PDF 출력 연결
+    from src.graph import build_graph
+
+    try:
+        result = build_graph(prepare_indexes=prepare_indexes).invoke(
+            state, config=execution_config
+        )
+    except ImportError:
+        parser.exit(1, "실행 의존성을 설치하세요: uv sync --extra rag\n")
+    except (ValueError, RuntimeError, OSError) as exc:
+        parser.exit(1, f"전체 실행 중단: {exc}\n")
+    # 보고서 Markdown/PDF 저장은 6번이 담당한다. 앱은 최종 State만 별도로 보존한다.
+    output = PROJECT_ROOT / "outputs" / "pipeline_state.json"
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(
+        json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
     print(
-        f"실행 골격: max_candidates={max_candidates}, "
-        f"recursion_limit={execution_config['recursion_limit']} / 전체 연결: TODO 구현"
+        f"전체 평가 완료: {len(result.get('evaluation_history', []))}개 기업 / State: {output}"
     )
 
 

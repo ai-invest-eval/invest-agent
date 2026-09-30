@@ -8,7 +8,7 @@ LLM_MODEL = "gpt-4o-mini"
 LLM_TEMPERATURE = 0
 EMBEDDING_MODEL = "BAAI/bge-m3"
 
-# TODO(통합 담당): 그래프 연결 후 후보별 실제 superstep 수와 재시도 예산을 반영
+# 후보당 1→2→(3a·3b)→4→5의 5 superstep. 8로 여유를 두고 종료 비용은 별도 확보.
 STEPS_PER_CANDIDATE = 8
 EXTRA_STEPS = 10
 
