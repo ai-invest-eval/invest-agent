@@ -1,7 +1,197 @@
-"""Agent 5 node contract; implementation belongs to its assigned developer."""
+"""Agent 5 InvestmentDecision.
 
-from src.schemas import InvestmentDecisionUpdate
+LLM(Judge): 영역별 6회 호출로 질문별 점수·근거·출처 번호·근거 문장을 구조화 출력한다.
+코드: 출처·근거 문장 검증 → 결측 점수 교체 → 총점·결측 비중 → 관문 → 판정 → 이력 1건.
+채점 기준은 docs/investment_criteria_v4.md, 형식은 docs/data_contracts.md를 따른다.
+"""
+
+import json
+from datetime import datetime
+from typing import Literal
+from zoneinfo import ZoneInfo
+
+from pydantic import BaseModel, Field
+
+from src.agents import agent5_config as cfg
+from src.agents import agent5_scoring as scoring
+from src.agents.agent5_rubric import PROMPT, rubric_text
+from src.schemas import EvaluationRecord, InvestmentDecision, InvestmentDecisionUpdate
 from src.state import InvestmentState
+
+
+# ── LLM 출력 형식 (Pydantic 검증) ──────────────────────────────
+class JudgeItem(BaseModel):
+    question: Literal[
+        "QA",
+        "QB",
+        "QC",
+        "QD",
+        "QE",
+        "QF",
+        "QG",
+        "QH",
+        "QI",
+        "QJ",
+        "QK",
+        "QL",
+        "QM",
+        "QN",
+        "QO",
+    ]
+    score: int | None = Field(
+        None, ge=1, le=5, description="기준표 1~5점. 근거 없으면 null"
+    )
+    reason: str = Field(
+        description="점수를 정한 핵심 사실 한 문장. 결측이면 '정보 없음'"
+    )
+    ref_ids: list[str] = Field(
+        default_factory=list, description="출처 목록 번호. 예: ['R1']"
+    )
+    quote: str | None = Field(
+        None, description="근거 문장을 입력 자료에서 글자 그대로 복사"
+    )
+    missing: bool = Field(description="입력 자료에 근거가 없으면 true")
+
+
+class JudgeResult(BaseModel):
+    items: list[JudgeItem]
+
+
+# ── 프롬프트 ─────────────────────────────────────────────────
+def _as_text(value) -> str:
+    if value in (None, ""):
+        return "(없음)"
+    if isinstance(value, str):
+        return value
+    return json.dumps(value, ensure_ascii=False, indent=1)
+
+
+def _ref_line(ref_id: str, ref: dict) -> str:
+    where = ref.get("url") or (
+        f"p.{ref['page']}" if ref.get("page") is not None else ""
+    )
+    return f"[{ref_id}] {ref.get('title')} | {ref.get('issuer') or '발행처 미확인'} | {ref.get('year') or '연도 미확인'} | {where}"
+
+
+def build_prompts(
+    state: InvestmentState, ref_catalog: dict[str, dict]
+) -> list[tuple[str, list[str], str]]:
+    """영역별 (영역 키, 질문 목록, 프롬프트) 6개."""
+    profile = state.get("startup_profile") or {}
+    business_model = profile.get("business_model", "unknown")
+    lead_market = (
+        profile.get("lead_indication") or profile.get("lead_service") or "미지정"
+    )
+    refs = "\n".join(_ref_line(i, r) for i, r in ref_catalog.items()) or "(없음)"
+    prompts = []
+    for area, qs in cfg.QUESTIONS.items():
+        context = "\n\n".join(
+            f"### {key}\n{_as_text(state.get(key))}" for key in cfg.AREA_CONTEXT[area]
+        )
+        prompt = PROMPT.format(
+            company=state["selected_startup"]["name"],
+            business_model=business_model,
+            lead_market=lead_market,
+            today=datetime.now(ZoneInfo("Asia/Seoul")).date().isoformat(),
+            area_name=cfg.AREA_NAMES[area],
+            rubric=rubric_text(qs, business_model),
+            context=context,
+            references=refs,
+            questions=", ".join(qs),
+        )
+        prompts.append((area, qs, prompt))
+    return prompts
+
+
+# ── LLM 호출 ─────────────────────────────────────────────────
+def _get_llm():
+    """import 시점이 아니라 실행 시점에 모델을 만든다 (CONTRIBUTING: import 시 API 호출 금지)."""
+    from langchain_openai import ChatOpenAI
+
+    from src.config import LLM_MODEL, LLM_TEMPERATURE
+
+    return ChatOpenAI(
+        model=LLM_MODEL, temperature=LLM_TEMPERATURE
+    ).with_structured_output(JudgeResult)
+
+
+def _items_of(result) -> list[dict]:
+    items = result.items if isinstance(result, JudgeResult) else result["items"]
+    return [it.model_dump() if hasattr(it, "model_dump") else dict(it) for it in items]
+
+
+def call_judge(llm, prompts) -> dict:
+    """영역별 batch 호출. 실패한 영역만 재시도하고, 그래도 실패하면 예외를 낸다.
+
+    API 오류는 근거 부족과 다른 기술적 실패이므로 결측으로 바꾸지 않는다 (data_contracts 8장).
+    """
+    pending = list(prompts)
+    raw: dict = {}
+    for attempt in range(cfg.LLM_RETRIES + 1):
+        results = llm.batch([p for _, _, p in pending], return_exceptions=True)
+        failed = []
+        for (area, qs, prompt), res in zip(pending, results):
+            if isinstance(res, Exception) or res is None:
+                failed.append(((area, qs, prompt), res))
+                continue
+            for item in _items_of(res):
+                if item.get("question") in qs:  # 다른 영역 질문은 무시
+                    raw[item["question"]] = item
+        if not failed:
+            return raw
+        pending = [p for p, _ in failed]
+    errors = "; ".join(
+        f"{p[0]}: {type(e).__name__ if e else 'None'}" for p, e in failed
+    )
+    raise RuntimeError(
+        f"Agent 5 LLM 호출 실패 (재시도 {cfg.LLM_RETRIES}회 후): {errors}"
+    )
+
+
+# ── 판정 조립 ────────────────────────────────────────────────
+def evaluate(state: InvestmentState, llm) -> InvestmentDecision:
+    profile = state["startup_profile"]
+    refs = scoring.collect_references(state)
+    ref_catalog = {f"R{i + 1}": ref for i, ref in enumerate(refs)}
+
+    raw = call_judge(llm, build_prompts(state, ref_catalog))
+    evidence = scoring.finalize_evidence(
+        raw, ref_catalog, scoring.build_corpus(state), profile.get("business_model")
+    )
+    area_scores, total, missing_weight = scoring.compute_scores(evidence)
+    gate_hits, eligibility_unknown, unconfirmed = scoring.check_gates(profile)
+    verdict, hold_reason = scoring.decide(
+        total, area_scores, missing_weight, gate_hits, eligibility_unknown
+    )
+
+    decision: InvestmentDecision = {
+        "total": total,
+        "area_scores": area_scores,
+        "question_scores": {q: e["score"] for q, e in evidence.items()},
+        "question_evidence": evidence,
+        "verdict": verdict,
+        "hold_reason": hold_reason,
+        "unconfirmed_gates": unconfirmed,
+        "missing_weight": missing_weight,
+        "rationale": scoring.make_rationale(
+            verdict, hold_reason, total, area_scores, evidence, unconfirmed
+        ),
+    }
+    scoring.validate_decision(decision)
+    return decision
+
+
+def build_update(state: InvestmentState, llm) -> InvestmentDecisionUpdate:
+    decision = evaluate(state, llm)
+    record: EvaluationRecord = {
+        **decision,
+        "name": state["selected_startup"]["name"],
+        "startup_profile": state["startup_profile"],
+        "tech_analysis": state.get("tech_analysis", ""),
+        "market_analysis": state.get("market_analysis", ""),
+        "competitor_analysis": state.get("competitor_analysis", ""),
+    }
+    return {"investment_decision": decision, "evaluation_history": [record]}
 
 
 def investment_decision(state: InvestmentState) -> InvestmentDecisionUpdate:
@@ -9,22 +199,4 @@ def investment_decision(state: InvestmentState) -> InvestmentDecisionUpdate:
 
     출력: investment_decision, evaluation_history (State 변경분만 반환).
     """
-    # TODO(5번): QA~QO 1~5점·근거·출처·결측 여부를 구조화해 검증
-    # TODO(5번): docs/investment_criteria_v4.md를 채점 기준으로 적용
-    # TODO(5번): Judge reason/source를 공통 rationale/references로 매핑
-    # TODO(5번): question_evidence에 QuestionEvidence 기록, question_scores와 동기화
-    # TODO(5번): 영역 가중치·기준점·결측 기본점은 설정 파일로 분리
-    # TODO(5번): 총점·결측 비중·최종 판정은 Python으로 계산
-    # TODO(5번): 관문 → 결측 비중 → 총점/창업자 기준 순서로 판정
-    # TODO(5번): 자격 관문 None은 보류, 리스크 관문 None은 평가 진행+미확인 표시
-    # TODO(5번): 미확인 리스크 키를 unconfirmed_gates에 기록, 없으면 []
-    # TODO(5번): 결측은 2점(QN/QO는 3점), QN/QO 결측도 결측 비중에 포함
-    # TODO(5번): QD의 pipeline/platform별 기준표 선택, 총점75/창업자60/결측0.30 적용
-    # TODO(5번): 2번의 business_model을 재분류하지 않고 unknown이면 QD만 결측2점 처리
-    # TODO(5번): 영역 키 founder/market/product/moat/traction/deal 고정
-    # TODO(5번): hold_reason은 v4 사유 사용, 판정 전 반올림·임의 사유 코드 추가 금지
-    # TODO(5번): QN은 동일 단계 중앙값 대비 비율, 출처/비교 표본 미확보 시 결측3점
-    # TODO(5번): QN은 v4대로 평가, 문서에 없는 24개월·최소3개 등 추가 조건 강제 금지
-    # TODO(5번): QN 경계 중첩은 낮은 점수 적용, 상세 규칙은 docs/data_contracts.md
-    # TODO(5번): 현재 기업 프로필·분석·판정을 복사해 평가 이력 한 건만 추가
-    raise NotImplementedError("Agent 5 구현 예정")
+    return build_update(state, _get_llm())
