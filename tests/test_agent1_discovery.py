@@ -150,3 +150,14 @@ class DiscoveryTests(unittest.TestCase):
     def test_failed_collection_is_not_empty_success(self):
         with self.assertRaises(ValueError):
             extract_candidate_leads(FakeGenerator(), {"status": "error"})
+
+    def test_rejected_candidate_keeps_debug_evidence(self):
+        invalid = lead(evidence=[{"document_id": "doc0000", "quote": "invented quote"}])
+        result = extract_candidate_leads(
+            FakeGenerator(ExtractedLeads(leads=[invalid])), collection()
+        )
+        self.assertEqual(result["lead_count"], 0)
+        self.assertEqual(
+            result["rejected_leads"][0]["candidate"]["evidence"][0]["quote"],
+            "invented quote",
+        )
