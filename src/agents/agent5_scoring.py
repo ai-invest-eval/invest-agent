@@ -68,10 +68,31 @@ def build_corpus(state: dict) -> str:
     return "\n".join(_squash(p) for p in parts)
 
 
+QUOTE_NGRAM = 5  # 근거 문장 대조 단위(공백 제거 후 글자 5개)
+QUOTE_MIN_OVERLAP = 0.6  # 근거 문장 조각의 60% 이상이 원문에 있으면 인정
+
+
 def quote_is_real(quote: Any, corpus: str) -> bool:
+    """근거 문장이 원문에 있는지 확인한다.
+
+    LLM은 원문을 조금씩 바꿔 인용하므로(조사·기호·말줄임), 글자 그대로 일치하지
+    않아도 5글자 조각의 60% 이상이 원문에 있으면 인정한다. 원문에 없는 문장은
+    대부분의 조각이 원문에 없어 여전히 걸러진다.
+    """
     if not isinstance(quote, str) or len(_squash(quote)) < 4:
         return False
-    return _squash(quote) in corpus
+    if _squash(quote) in corpus:  # 기존 규칙: 글자 그대로 일치
+        return True
+    q = _squash(re.sub(r"[\"'“”‘’「」『』…·.,!?()\[\]]", "", quote))
+    if len(q) < 4:
+        return False
+    if q in corpus:
+        return True
+    if len(q) < QUOTE_NGRAM * 2:
+        return False
+    grams = [q[i : i + QUOTE_NGRAM] for i in range(len(q) - QUOTE_NGRAM + 1)]
+    hit = sum(g in corpus for g in grams)
+    return hit / len(grams) >= QUOTE_MIN_OVERLAP
 
 
 # ── 3. 질문별 근거 확정 ───────────────────────────────────────

@@ -78,6 +78,17 @@ def main() -> None:
 
     result = build_graph().invoke(state, config=execution_config)
     history = result.get("evaluation_history") or []
+    # 진단용 실행 기록: 질문별 점수·근거·결측 사유와 후보 목록
+    out_dir = PROJECT_ROOT / "outputs"
+    out_dir.mkdir(exist_ok=True)
+    run_state = {
+        "candidate_startups": result.get("candidate_startups") or [],
+        "evaluation_history": history,
+    }
+    (out_dir / "run_state.json").write_text(
+        json.dumps(run_state, ensure_ascii=False, indent=2, default=str),
+        encoding="utf-8",
+    )
     passed = [r["name"] for r in history if r.get("verdict") == "통과"]
     print(
         f"완료: 후보 {len(history)}곳 평가, 통과 {len(passed)}곳 "
