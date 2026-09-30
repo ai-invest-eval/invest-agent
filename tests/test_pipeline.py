@@ -132,7 +132,9 @@ class PipelineTests(unittest.TestCase):
         ):
             app.main()
             saved = json.loads(
-                (Path(directory) / "outputs/pipeline_state.json").read_text()
+                (Path(directory) / "outputs/pipeline_state.json").read_text(
+                    encoding="utf-8"
+                )
             )
         index.assert_not_called()
         builder.assert_called_once_with(prepare_indexes=index)

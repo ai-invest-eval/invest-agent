@@ -9,9 +9,10 @@ import copy
 import json
 from datetime import datetime
 from typing import Literal
-from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, Field
+
+from src.config import KST
 
 from src.agents import agent5_config as cfg
 from src.agents import agent5_scoring as scoring
@@ -95,7 +96,7 @@ def build_prompts(
             company=state["selected_startup"]["name"],
             business_model=business_model,
             lead_market=lead_market,
-            today=datetime.now(ZoneInfo("Asia/Seoul")).date().isoformat(),
+            today=datetime.now(KST).date().isoformat(),
             area_name=cfg.AREA_NAMES[area],
             rubric=rubric_text(qs, business_model),
             context=context,
