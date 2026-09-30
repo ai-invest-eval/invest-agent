@@ -20,6 +20,7 @@ from pydantic import BaseModel, Field
 from src.config import LLM_MODEL, LLM_TEMPERATURE
 from src.schemas import CompetitorAnalysisUpdate, Reference, StartupProfile
 from src.state import InvestmentState
+from src.tools.quote_match import quote_in
 
 
 # LLM 초안은 내부 Pydantic 모델로 검증한다. 공용 State 스키마를 복제하지 않는다.
@@ -457,15 +458,10 @@ class CompetitorAgent:
             for citation in claim.citations:
                 source = sources.get(citation.source_id)
                 # 실제 발췌문에 존재하는 인용만 허용. 주장과의 논리적 일치까지 보장하지는 않는다.
-                if (
-                    source
-                    and citation.quote.strip()
-                    and citation.quote in source["content"]
-                ):
+                if source and quote_in(citation.quote, source["content"]):
                     valid.append(citation)
-            if claim.status != "unknown" and (
-                not valid or len(valid) != len(claim.citations)
-            ):
+            # 확인된 인용이 하나라도 있으면 주장을 유지하고, 확인 안 된 인용만 뺀다.
+            if claim.status != "unknown" and not valid:
                 claim.text = "정보 없음: 근거 인용을 확인하지 못해 주장 재검토 필요"
                 claim.status = "unknown"
                 draft.missing_information.append(
