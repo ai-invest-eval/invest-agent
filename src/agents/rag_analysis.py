@@ -179,13 +179,35 @@ class RagAnalysisAgent:
             notes.append(
                 "QD: 사업 모델 또는 대표 시장 미확인으로 정보 부족. 재분류하지 않음."
             )
+        focus = state.get("analysis_focus") or []
+        if (
+            not isinstance(focus, list)
+            or len(focus) > 3
+            or any(
+                not isinstance(item, str) or not item.strip() or len(item) > 25
+                for item in focus
+            )
+        ):
+            raise ValueError(
+                "analysis_focus는 25자 이내 검색 힌트 최대 3개여야 합니다."
+            )
+        plan_context = {"analysis_focus": focus} if focus else {}
         plan = self.ask(
             SearchPlan,
             {
                 **context,
+                **plan_context,
                 "task": "분석용 RAG 검색 질문 1~3개를 계획하세요. 기업명보다 기술·질환·서비스 개념 중심. topic은 null도 가능.",
             },
         )
+        if focus:
+            # 계획 힌트를 실제 초기 검색에도 연결한다. 필터·top-k·재검색은 유지.
+            first = plan.queries[0]
+            hint = " ".join(focus)
+            query = first.query[: 299 - len(hint)] + " " + hint
+            plan = SearchPlan(
+                queries=[Query(query=query, topic=first.topic), *plan.queries[1:]]
+            )
 
         def retrieve(queries, first=False):
             # 대표 시장은 upstream이 지정. QD 자료를 우선 검색하되 나머지 분석도 이어간다.
