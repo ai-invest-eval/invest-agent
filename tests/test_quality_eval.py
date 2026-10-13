@@ -181,9 +181,23 @@ def test_pass_draft_targets():
     from src.orchestration.quality_eval import judge_targets
 
     draft = {"kind": "pass", "payload": {"reasons": [{"text": "이유1", "area": "market"}],
-                                         "key_risk": "리스크", "s2_1": "개요", "s2_6": ""}}
+                                         "key_risk": "리스크", "s2_7": "관문 미확인 리스크",
+                                         "s2_1": "개요", "s2_6": "", "s2_10": "가상 추가 소항목"}}
     names = [n for n, _ in judge_targets({"report_draft": draft})]
-    assert names == ["SUMMARY 투자 이유 1", "SUMMARY 핵심 리스크", "2.1 상세 분석"]
+    # 2.7(사업 리스크와 한계점) 포함, 빈 소항목 제외, 숫자 순 정렬
+    assert names == ["SUMMARY 투자 이유 1", "SUMMARY 핵심 리스크",
+                     "2.1 상세 분석", "2.7 상세 분석", "2.10 상세 분석"]
+
+
+def test_pass_targets_cover_all_agent6_sections():
+    """agent6 DetailDraft의 2장 소항목 필드가 모두 평가 대상에 들어간다."""
+    from src.agents.agent6_report import DetailDraft
+    from src.orchestration.quality_eval import judge_targets
+
+    fields = [f for f in DetailDraft.model_fields if f.startswith("s2_")]
+    payload = {"reasons": [], "key_risk": "", **{f: f"{f} 문장" for f in fields}}
+    names = [n for n, _ in judge_targets({"report_draft": {"kind": "pass", "payload": payload}})]
+    assert len(names) == len(fields) and "2.7 상세 분석" in names
 
 
 def test_empty_report_skips_judge():
