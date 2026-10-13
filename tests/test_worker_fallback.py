@@ -3,11 +3,12 @@
 import copy
 from collections import Counter
 from threading import Barrier, Lock
+from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 import pytest
 
-from src.orchestration import worker
+from src.orchestration import observability, worker
 
 
 def reference(company, agent, page=None):
@@ -43,8 +44,13 @@ def payload(company="Alpha", index=0, max_attempts=2):
 
 
 @pytest.fixture(autouse=True)
-def clear_failure_injection(monkeypatch):
+def clear_failure_injection(monkeypatch, tmp_path):
     monkeypatch.delenv("FORCE_FAIL_COMPANY", raising=False)
+    monkeypatch.setenv("LANGSMITH_TRACING", "false")
+    monkeypatch.setenv("LANGCHAIN_TRACING_V2", "false")
+    monkeypatch.delenv("LANGSMITH_API_KEY", raising=False)
+    monkeypatch.setenv("REPORT_OUTPUT_DIR", str(tmp_path))
+    monkeypatch.setattr(observability, "TRACE_DIR", tmp_path / "trace", raising=False)
 
 
 @pytest.fixture
@@ -432,7 +438,7 @@ def test_retry_and_success_logs_include_total_duration(
 ):
     fake_nodes({"Alpha": 1})
     ticks = iter([10.0, 11.0, 13.0])
-    monkeypatch.setattr(worker.time, "monotonic", lambda: next(ticks))
+    monkeypatch.setattr(worker, "time", SimpleNamespace(monotonic=lambda: next(ticks)))
     config = {"metadata": {"trace_id": "trace"}}
     result = worker.run_worker(payload(), config)
     assert result["worker_results"][0]["duration_ms"] == 3000
@@ -456,7 +462,7 @@ def test_retry_and_success_logs_include_total_duration(
 def test_final_failure_logs_exclusion(monkeypatch, decisions):
     monkeypatch.setenv("FORCE_FAIL_COMPANY", "Alpha")
     ticks = iter([10.0, 11.0, 12.0])
-    monkeypatch.setattr(worker.time, "monotonic", lambda: next(ticks))
+    monkeypatch.setattr(worker, "time", SimpleNamespace(monotonic=lambda: next(ticks)))
     result = worker.run_worker(payload(), {})
     assert [c.args[2] for c in decisions.call_args_list] == ["retry", "excluded"]
     assert decisions.call_args_list[-1].args[3] == result["worker_results"][0]["error"]
