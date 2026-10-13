@@ -96,31 +96,81 @@ Worker 내부의 하위 에이전트(2, 3-A, 3-B, 4, 5)는 [`src/agents/`](src/a
 | 결과 통합 순서 | Worker 완료 순서와 무관하게 `task_index` 순으로 정렬. REFERENCE 번호는 안정 키로 정렬한 뒤 부여 |
 | 관측성 | Worker별 `task_id`·`attempts`·`duration_ms`·`status`를 `worker_results`와 결정 로그에 기록. `summarize_trace(trace_id)`로 가장 느린 Worker 확인 |
 
-## 6. 품질 평가 (Hybrid: 규칙 + LLM Judge)
+## 6. 품질 평가 (Quality Evaluation)
 
-| 평가 항목 | 규칙 검사 (결정적) | LLM Judge (1~5점) |
+보고서를 만든 뒤 `quality_eval` 노드가 품질을 판정하고, 기준에 못 미치면 보고서를 다시 작성합니다. 평가는 **규칙 검사(결정적) + LLM Judge(내용)**를 함께 쓰는 Hybrid 방식입니다.
+
+> 관점 커버리지(기술 성숙도·시장성·이해관계자·도메인 적용)는 팀 합의로 평가 항목에서 제외했습니다.
+
+### 평가 항목
+
+| 평가 항목 | 규칙 검사 (코드) | LLM Judge (1~5점) |
 |---|---|---|
-| Groundedness | 본문 출처 표기가 REFERENCE에 존재 · REFERENCE ≥ 3개 | 보고서에 등장하는 **모든 기업**의 근거 묶음과 주요 주장을 대조 |
-| 중립성 | 금지 표현(최고의·압도적·반드시 투자·확실한 수익·유일한) 미검출 | 근거 없는 우열 판정·과장 표현 |
-| 편향 통제 | 단일 발행처 비중 ≤ 50% · 리스크/보류 사유 문장 존재 | 유리한 근거만 쓰고 리스크·결측을 숨겼는지 |
-| 형식 | 첫 장 SUMMARY, 마지막 장 REFERENCE · 최대 10쪽 | — |
+| **Groundedness** | 본문의 `(저자·기관명, 연도)` 출처 표기가 모두 REFERENCE에 있는지 · REFERENCE 항목 3개 이상 | 보고서의 주요 주장이 기업별 근거 묶음과 맞는지 |
+| **중립성** | 금지 표현(`최고의`, `압도적`, `반드시 투자`, `확실한 수익`, `유일한`) 미검출 | 근거 없는 우열 판정·과장 표현이 없는지 |
+| **편향 통제** | 핵심 리스크·보류 사유 문장 존재 · 단일 발행처 비중 50% 이하 | 유리한 근거만 쓰고 리스크·결측을 숨기지 않았는지 |
+| **형식** | 첫 장 SUMMARY, 마지막 장 REFERENCE · 10쪽 이내 | — |
 
-**근거 종류 구분.** Judge에 넘기는 근거는 `evidence_kind`로 나눕니다. `source_excerpt`는 인용문이 RAG 청크 원문에 글자 그대로 있는지 코드로 재확인한 것만입니다. 그 외 분석 문장과 웹 출처는 `analysis_rationale`로 두어 "분석 근거와의 일관성"만 평가합니다. 어느 방식으로 검증했는지는 `source_verification`에 기록합니다.
+**중립성의 정의:** 이 보고서는 투자 판정을 내리는 문서입니다. 따라서 "통과/보류와 순위는 코드 규칙(점수·관문)으로만 정하고, LLM이 쓴 문장은 근거 없는 우열 판정을 하지 않는다"를 중립성으로 봅니다. 순위표와 판정 자체는 감점 대상이 아닙니다.
 
-**판정 필드.**
+### 재작성으로 고칠 수 있는 미달 vs 구조적 미달
+
+| 구분 | 예시 | 처리 |
+|---|---|---|
+| **재작성 가능** (`fixable_issues`) | 출처 없는 표기, 금지 표현, 리스크 문장 누락, 형식 오류, 쪽수 초과, Judge 3점 미만 | 피드백과 함께 보고서 재작성(루프) |
+| **구조적** (`structural_issues`) | REFERENCE 수 부족, 발행처 편중 | 문장을 고쳐도 해결되지 않으므로 루프 없이 보고서에 경고로 표시 |
+
+- Judge가 3점 미만을 주고 지적 내용(issues)을 비워 두어도, 코드가 항목별 기본 피드백을 넣어 재작성 루프가 끊기지 않게 했습니다.
+- 평가할 때마다 규칙 결과·피드백·판정을 처음부터 새로 계산합니다. 이전 평가의 지적이 남지 않습니다.
+
+### Groundedness 근거 묶음
+
+Judge가 보고서 문장과 근거를 직접 대조할 수 있도록, **보고서에 나오는 모든 기업**의 근거를 `task_index` 순으로 묶어 함께 줍니다.
+
+| 근거 종류 (`evidence_kind`) | 내용 | Judge 평가 방식 |
+|---|---|---|
+| `source_excerpt` | 3A/3B 분석의 `원문 근거` 인용문 중, 품질 평가 단계에서 RAG 색인의 원문 청크를 다시 읽어 일치를 확인한 것 | 주장과 원문 연결을 엄격히 평가 |
+| `analysis_rationale` | 질문별 채점 근거, 원문을 다시 확인하지 못한 인용 | 보고서 서술과의 일관성만 평가 |
+| `rule_result` | 코드가 계산한 판정·총점·결측 비중·보류 사유 | 보고서 숫자·판정과 일치하는지만 확인 |
+
+- 원문 대조는 3A/3B와 같은 방식(정규화 후 공백·대소문자 무시)입니다.
+- 근거 묶음의 구성은 `source_verification`(`excerpt` / `mixed` / `consistency_only` / `none`)으로 기록해, 원문까지 검증한 평가인지 일관성만 본 평가인지 구분합니다.
+
+### 판정 결과 (`eval_result`)
 
 | 필드 | 의미 |
 |---|---|
-| `passed` | 모든 규칙 통과 + Judge 완료 + Judge 3항목 모두 ≥ 3점 + 쪽수 확인 |
-| `can_rewrite` | 재작성으로 고칠 수 있는 문제가 남아 있음. Judge가 3점 미만을 주고 수정 사항을 비워도 코드가 기본 피드백을 넣어 루프가 끊기지 않음 |
-| `judge_status` | `completed` / `unavailable` / `stale`(finalize가 본문을 축약해 Judge가 평가한 본문과 달라짐) |
-| `termination_reason` | `passed` / `unfixable`(데이터 부족 등) / `evaluation_unavailable`(평가 자체를 못 함) / `max_attempts` / `max_steps` |
+| `passed` | 모든 규칙 통과 **그리고** Judge 실행 완료 **그리고** Judge 3항목 모두 3점 이상 **그리고** 쪽수 확인됨 |
+| `can_rewrite` | 재작성으로 고칠 수 있는 문제가 남아 있음 |
+| `judge_status` | `completed` / `unavailable`(Judge 호출 실패) / `stale`(최종화 단계에서 본문이 축약돼 Judge가 본 본문과 달라짐) |
+| `evaluated_body_hash` | 평가한 보고서 본문의 해시. 최종 본문과 평가 본문이 같은지 확인용 |
 
-**판정과 분기 분리.** `quality_eval`은 판정만 State에 쓰고, 다음 경로는 LLM 호출이 없는 순수 함수 `route_after_eval`이 정합니다. Judge 출력은 실행마다 달라질 수 있지만, 같은 판정 결과에는 항상 같은 경로로 갑니다.
+`passed`는 "종료해도 된다"가 아니라 **"품질 기준을 실제로 충족했다"**는 뜻입니다. 구조적 미달이나 Judge 장애가 있어도 실행은 종료되지만, 이때 `passed`는 `False`입니다.
 
-**종료 순서:** step 상한 → 통과 → (재작성 가능하면 작성 상한 확인 후 재작성) → 평가 불가 → 재작성 불가. 모든 종료는 `finalize`를 거칩니다. finalize는 새 LLM 문장을 만들지 않고, 품질 결과 블록을 붙인 뒤 다시 렌더링해 **최종 쪽수로 판정을 확정**합니다. 저장되는 Markdown과 PDF는 같은 최종 본문에서 만들어집니다.
+### 판정과 분기의 분리
 
-**중립성 해석.** 이 과제는 투자 판정을 내리는 보고서이므로 "통과/보류와 순위는 코드 규칙으로만 결정되고, LLM이 쓴 문장은 근거 없는 우열 판정을 하지 않는다"를 중립성의 정의로 사용합니다.
+- `quality_eval` 노드는 **판정만** State에 기록합니다.
+- 다음 경로는 LLM 호출이 없는 순수 함수 `routing.route_after_eval`이 정합니다. Judge 출력은 비결정적이어도, 같은 판정 결과에는 항상 같은 경로로 갑니다.
+- 모든 종료 경로는 `finalize` 노드를 거칩니다. finalize는 새 LLM 문장을 만들지 않고, 품질 결과 블록을 붙인 뒤 다시 렌더링해 **최종 쪽수로 판정을 확정**하고 저장합니다. 저장되는 Markdown과 PDF는 같은 최종 본문에서 만들어집니다.
+
+| 종료 사유 (`termination_reason`) | 조건 | 보고서 표시 |
+|---|---|---|
+| `passed` | 품질 기준 충족 | 통과 |
+| `max_attempts` | 고칠 수 있는 문제가 남았지만 작성 상한(3회) 도달 | 품질 미달 |
+| `unfixable` | 재작성으로 못 고치는 구조적 미달(데이터 부족 등)만 남음 | 품질 미달 |
+| `evaluation_unavailable` | Judge 장애 또는 쪽수 미확인으로 평가를 끝내지 못함 | 평가 불완전 |
+| `max_steps` | 전체 step 상한 도달 (안전 종료) | 품질 미달 |
+
+판단 순서: step 상한 → 통과 → 재작성 가능(상한이면 `max_attempts`, 아니면 재작성) → 평가 장애 → 그 외 `unfixable`
+
+### 코드 위치
+
+| 내용 | 위치 |
+|---|---|
+| 규칙 검사·근거 묶음·LLM Judge·판정 | [`quality_eval.py`](src/orchestration/quality_eval.py) |
+| 종료 판단·분기 | [`routing.py`](src/orchestration/routing.py) |
+| 품질 결과 블록·최종 쪽수 확인·저장 | [`finalize.py`](src/orchestration/finalize.py) |
+| 테스트 | `tests/test_quality_eval.py`, `tests/test_routing.py`, `tests/test_finalize.py` |
 
 ## 7. 시연
 
