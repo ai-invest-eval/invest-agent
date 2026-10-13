@@ -254,3 +254,108 @@ class InvestmentDecisionUpdate(TypedDict):
 
 class ReportUpdate(TypedDict):
     final_report: str
+
+
+# v3.2 orchestration contracts. Existing agent payload contracts above are unchanged.
+TerminationReason = Literal[
+    "passed", "unfixable", "evaluation_unavailable", "max_attempts", "max_steps"
+]
+SourceVerification = Literal["excerpt", "consistency_only", "mixed", "none"]
+
+
+class SubTask(TypedDict):
+    task_id: str
+    task_index: int
+    company: CandidateStartup
+    focus: list[str]
+    discovery_refs: list[Reference]
+    max_attempts: int
+
+
+class WorkerResult(TypedDict):
+    task_id: str
+    task_index: int
+    company: str
+    status: Literal["done", "excluded"]
+    attempts: int
+    duration_ms: int
+    error: str | None
+
+
+class ReportDraft(TypedDict):
+    kind: Literal["empty", "pass", "no_pass"]
+    payload: dict
+    section_char_limit: int
+    reference_map: dict
+
+
+class EvalVerdict(TypedDict):
+    passed: bool
+    can_rewrite: bool
+    judge_status: Literal["completed", "unavailable"]
+    source_verification: SourceVerification
+    evaluated_body_hash: str
+    termination_reason: TerminationReason | None
+    rule_checks: dict[str, bool]
+    judge_scores: dict[str, int] | None
+    fixable_issues: list[str]
+    structural_issues: list[str]
+    attempt: int
+
+
+class EvidenceItem(TypedDict):
+    company: str
+    task_index: int
+    claim_area: Literal["question", "hold_reason", "summary"]
+    question: str | None
+    evidence_kind: Literal["source_excerpt", "analysis_rationale", "rule_result"]
+    text: str
+    source_ids: list[str]
+    source_locator: str | None
+    # True only after retrieving original bytes and checking source/location/text.
+    excerpt_verified: bool
+
+
+class OrchestratorUpdate(TypedDict):
+    candidate_startups: list[CandidateStartup]
+    plan: list[SubTask]
+    references: list[Reference]
+    step_count: int
+    node_status: dict[str, str]
+    last_error: NotRequired[str | None]
+
+
+class WorkerUpdate(TypedDict):
+    # Intentionally no last_error: multiple workers cannot write serial-only fields.
+    worker_results: list[WorkerResult]
+    step_count: int
+    node_status: dict[str, str]
+    evaluation_history: NotRequired[list[EvaluationRecord]]
+    references: NotRequired[list[Reference]]
+
+
+class SynthesizerUpdate(TypedDict):
+    final_report: str
+    report_draft: ReportDraft | None
+    report_pages: int | None
+    report_attempts: int
+    step_count: int
+    node_status: dict[str, str]
+    last_error: NotRequired[str | None]
+
+
+class QualityEvalUpdate(TypedDict):
+    eval_result: EvalVerdict
+    eval_feedback: list[str]
+    step_count: int
+    node_status: dict[str, str]
+    last_error: NotRequired[str | None]
+
+
+class FinalizeUpdate(TypedDict):
+    final_report: str
+    report_pages: int | None
+    eval_result: EvalVerdict
+    step_count: int
+    node_status: dict[str, str]
+    last_error: NotRequired[str | None]
