@@ -185,7 +185,15 @@ Judge가 보고서 문장과 근거를 직접 대조할 수 있도록, **보고�
 - 1번 에이전트의 자격 판단은 LLM이 하므로 실행마다 후보 수가 1~2개 달라질 수 있다.
 - 검색 결과는 매번 달라지므로 재현 가능한 동작(품질 루프, 부분·전체 실패, 후보 0개)은 fixture로 검증한다. fixture는 실제 API·Judge·PDF를 실행하지 않는다.
 
-<!-- 캡처 추가: tracing-1.png … (실행 A·B Worker 수, worker 아래 중첩, 실패 주입, fixture quality_loop) -->
+### LangSmith 트레이스
+
+<!-- 실제 실행 캡처 추가 예정: 실행 A·B Worker 수 차이, worker 아래 중첩, 실패 주입 -->
+
+**품질 루프 (fixture `quality_loop`, 가상 실행)**
+
+첫 평가에서 미달 판정을 받은 보고서가 재작성된 뒤 다시 평가를 통과해 `finalize`로 끝나는 흐름이다. `synthesizer → quality_eval → route_after_eval`이 두 번 반복되고, `worker` 아래에 기업별 하위 노드(2 → 3A·3B → 4 → 5)가 중첩돼 있다. fixture는 실제 API·Judge·PDF를 실행하지 않으므로 노드별 소요 시간이 0초로 표시된다.
+
+![품질 루프 트레이스 (fixture)](docs/images/tracing-fixture-quality-loop.png)
 
 ## 8. Tech Stack
 
