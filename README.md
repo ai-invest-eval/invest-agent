@@ -15,7 +15,7 @@
 ### 동적 처리가 고정 순서와 다른 점
 
 - **Worker 수가 실행 시점에 정해진다.** 탐색·자격 검증을 통과한 후보 수만큼 `Send`를 만들며, 코드에 Worker 개수 상수가 없다.
-- **후보 수가 같은 상한에서도 키워드에 따라 달라진다.** 같은 상한 10에서 `AI 신약개발`은 후보 9개, `AI 희귀질환 신약`은 8개였다(1번 에이전트 단독 실행 결과).
+- **후보 수가 같은 상한에서도 키워드에 따라 달라진다.** 같은 상한 10에서 `AI 신약개발`은 Worker 10개, `AI 희귀질환 신약`은 4개가 생성됐다(7장).
 - **실패한 기업은 전체를 멈추지 않고 제외된다.** 1회 재시도 후에도 실패하면 보고서에 "평가 제외"로 남고 나머지 기업으로 보고서를 만든다.
 - **보고서 품질 미달이면 다시 쓴다.** 재작성으로 고칠 수 있는 문제만 루프를 돌고, 상한에 도달하면 멈춘다.
 
@@ -174,26 +174,58 @@ Judge가 보고서 문장과 근거를 직접 대조할 수 있도록, **보고�
 
 ## 7. 시연
 
-| 구분 | 목적 | 설정 |
-|---|---|---|
-| 실제 API 실행 A | 동적 계획·병렬 실행 | `--keyword "AI 신약개발" --max-candidates 10` |
-| 실제 API 실행 B | Worker 수 차이 | `--keyword "AI 희귀질환 신약" --max-candidates 10` |
-| 실패 주입 시연 | Fallback 증명 | `FORCE_FAIL_COMPANY=<회사명>` — **의도적으로 실패를 주입한 시연** |
-| 고정 fixture 실행 | 재현 가능한 동작 검증 | `--fixture quality_loop` 외 `empty`·`two`·`three`·`partial_fail`·`all_fail` |
+### 실행 결과
 
-- 상한 5에서는 두 키워드 모두 후보 5개가 꽉 차 차이가 드러나지 않았다. 그래서 상한을 10으로 고정하고 키워드만 바꾼다.
-- 1번 에이전트의 자격 판단은 LLM이 하므로 실행마다 후보 수가 1~2개 달라질 수 있다.
-- 검색 결과는 매번 달라지므로 재현 가능한 동작(품질 루프, 부분·전체 실패, 후보 0개)은 fixture로 검증한다. fixture는 실제 API·Judge·PDF를 실행하지 않는다.
+공용 브랜치 `51f5305`(A~F 전체 머지) 기준, 후보 상한 10, LangSmith 프로젝트 `invest-agent-orchestrator`.
+
+| | A2 | B2 | C (실패 주입) |
+|---|---|---|---|
+| 키워드 | AI 신약개발 | AI 희귀질환 신약 | AI 신약개발 |
+| 후보 수 = Worker 수 | **10** | **4** | **10** |
+| 평가 완료 / 제외 | 10 / 0 | 4 / 0 | 9 / 1 (히츠, 강제 실패) |
+| 보고서 작성 | 3회, `max_attempts` | 3회, `max_attempts` | 3회, `max_attempts` |
+| PDF | 2쪽 | 2쪽 | 2쪽 |
+| 무한 루프 | 없음 | 없음 | 없음 |
+| 트레이스 | [A2](https://smith.langchain.com/public/5f7a41be-b4be-43a0-81ac-eb80211c363c/r) | [B2](https://smith.langchain.com/public/b0d46435-16cc-4b2b-a247-3130f90ac6be/r) | [C](https://smith.langchain.com/public/5dc44162-3211-4682-bd70-2f9768d69415/r) |
+
+- **동적 Fan-out:** 상한이 같아도 키워드에 따라 Worker가 10개와 4개로 다르게 생성됐다. B2는 상한보다 적어, Worker 수가 입력 상한이 아니라 자격 검증을 통과한 후보 수로 정해짐을 보여 준다.
+- **실패 주입 Fallback:** C에서 히츠 Worker가 1회 재시도 후 `excluded`로 기록됐고, 나머지 9곳으로 보고서가 끝까지 생성됐다. 보고서 1장에 `평가 제외: 히츠(RuntimeError: forced failure for demo)`가 표시된다. **의도적으로 실패를 주입한 시연이다.**
+- **실제 장애 Fallback:** 첫 실행(A·B)은 두 실행을 동시에 돌려 Tavily dev 키가 차단됐다. 실패한 Worker는 2회 시도 후 제외되고 나머지 기업으로 보고서가 정상 생성됐다.
+- **종료 보장:** 세 실행 모두 품질 루프가 작성 상한(3회)에서 `finalize`로 종료됐다.
+
+| 구분 | 설정 |
+|---|---|
+| 실제 API 실행 | `--keyword "<키워드>" --max-candidates 10` |
+| 실패 주입 시연 | `FORCE_FAIL_COMPANY=<회사명>` 추가 |
+| 고정 fixture 실행 | `--fixture quality_loop` 외 `empty`·`two`·`three`·`partial_fail`·`all_fail` |
+
+**상한을 10으로 둔 이유.** 1번 에이전트는 통과 기업이 상한에 도달하면 탐색을 멈추고 자격 판정이 느슨해 앞쪽 후보가 대부분 통과한다. 그래서 상한 5에서는 두 키워드 모두 후보 5개로 꽉 차 차이가 드러나지 않았다.
+
+**후보 수는 실행마다 달라진다.** 웹 검색 결과와 LLM 자격 판단이 매번 달라, 같은 `AI 희귀질환 신약`이 1번 단독 실행에서는 8곳, 최종 실행에서는 4곳이었다. 그래서 재현이 필요한 동작(품질 루프, 부분·전체 실패, 후보 0개)은 fixture로 검증한다. fixture는 실제 API·Judge·PDF를 실행하지 않는다.
 
 ### LangSmith 트레이스
 
-<!-- 실제 실행 캡처 추가 예정: 실행 A·B Worker 수 차이, worker 아래 중첩, 실패 주입 -->
+**A2 — Worker 10개.** `orchestrator`가 계획을 세운 뒤 `worker` 10개가 생성됐다. 각 Worker는 76~99초 걸렸고 `max_concurrency`로 동시 실행 수가 제한된다.
 
-**품질 루프 (fixture `quality_loop`, 가상 실행)**
+![A2 트레이스: Worker 10개](docs/images/tracing-live-a2.png)
 
-첫 평가에서 미달 판정을 받은 보고서가 재작성된 뒤 다시 평가를 통과해 `finalize`로 끝나는 흐름이다. `synthesizer → quality_eval → route_after_eval`이 두 번 반복되고, `worker` 아래에 기업별 하위 노드(2 → 3A·3B → 4 → 5)가 중첩돼 있다. fixture는 실제 API·Judge·PDF를 실행하지 않으므로 노드별 소요 시간이 0초로 표시된다.
+**B2 — Worker 4개.** 같은 상한에서 `worker` 4개만 생성됐다. 이어서 `synthesizer → quality_eval`이 3회 반복된 뒤 `finalize`로 종료된다.
+
+![B2 트레이스: Worker 4개](docs/images/tracing-live-b2.png)
+
+**C — 실패 주입.** 히츠 Worker의 출력에 `status: excluded`, `error: RuntimeError: forced failure for demo`, `attempts: 2`가 기록됐다. 나머지 Worker 9개는 정상 완료됐다.
+
+![C 트레이스: 히츠 Worker 제외](docs/images/tracing-live-c-fail.png)
+
+**품질 루프 (fixture `quality_loop`, 가상 실행).** 첫 평가에서 미달 판정을 받은 보고서가 재작성된 뒤 다시 평가를 통과해 `finalize`로 끝나는 흐름이다. `synthesizer → quality_eval → route_after_eval`이 두 번 반복되고, `worker` 아래에 기업별 하위 노드(2 → 3A·3B → 4 → 5)가 중첩돼 있다. fixture는 실제 API·Judge·PDF를 실행하지 않으므로 노드별 소요 시간이 0초로 표시된다.
 
 ![품질 루프 트레이스 (fixture)](docs/images/tracing-fixture-quality-loop.png)
+
+### 한계
+
+- **실제 실행에서 품질 평가를 통과하지 못했다.** 세 실행 모두 Judge 점수가 groundedness 2 · neutrality 3 · bias 2로 같았고, 재작성 3회 동안 오르지 않았다. 원인은 Judge가 코드가 조립한 부분(순위표·판정 사유)까지 채점해 재작성으로 고칠 수 없는 지적을 한 것이었다. Judge가 LLM 작성 문장만 채점하도록 고친 수정(#19)은 위 실행 이후에 머지됐다.
+- **1번 자격 판정이 느슨하다.** 대원제약(상장 제약사), 메가존클라우드, Fathom·Alloy Therapeutics가 후보로 통과했다. 5번 관문에서 모두 보류로 걸러져 투자 추천으로 이어지지는 않았다. 보류 사유 중 "핵심 특허 분쟁 패소", "CEO 이탈" 같은 사실은 LLM 판정 결과이며 별도로 검증하지 않았다.
+- **Tavily dev 키 한도.** 실행을 동시에 돌리면 차단된다. 실행을 하나씩 순서대로 돌리고 `TAVILY_MIN_INTERVAL_SECONDS=5`, `WORKER_CONCURRENCY=2`로 설정해 해결했다.
 
 ## 8. Tech Stack
 
@@ -274,8 +306,9 @@ LANGSMITH_PROJECT=invest-agent-orchestrator
 **실행:**
 
 ```bash
-# 실제 실행 (Tavily dev 키는 검색 간격 5초 권장)
-TAVILY_MIN_INTERVAL_SECONDS=5 uv run --extra rag python app.py --keyword "AI 신약개발" --max-candidates 10
+# 실제 실행
+# Tavily dev 키는 실행을 하나씩 순서대로, 검색 간격 5초·Worker 동시 실행 2개 권장
+TAVILY_MIN_INTERVAL_SECONDS=5 WORKER_CONCURRENCY=2 uv run --extra rag python app.py --keyword "AI 신약개발" --max-candidates 10
 
 # 실패 주입 시연
 FORCE_FAIL_COMPANY="<회사명>" uv run --extra rag python app.py --keyword "AI 신약개발" --max-candidates 10
