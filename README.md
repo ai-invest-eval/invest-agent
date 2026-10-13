@@ -1,160 +1,247 @@
-# AI 신약개발 스타트업 투자 평가 에이전트
+# AI 신약개발 스타트업 투자 평가 에이전트 — Orchestrator-Workers
 
-## 1. 문제 정의와 차별점
+## 1. Overview
 
-초기 바이오 기업은 매출만으로 평가하기 어렵습니다. 신약 후보의 실험·임상 단계, AI 기술의 실제 검증, 제약사 계약의 선급금, 시장의 정의, 특허 권리 범위가 투자 판단을 바꿉니다. 이 프로젝트는 Healthcare AI 중 **AI 신약개발**로 범위를 좁혀 의료 영상 진단 기업과 동일한 기준으로 비교하지 않습니다.
+| 항목 | 내용 |
+|---|---|
+| Subject | AI 신약개발 스타트업 투자 심사 보고서 자동 생성 |
+| Objective | 키워드로 찾은 후보 기업을 같은 기준으로 평가하고, 순위·판정과 근거를 담은 보고서(최대 10쪽)를 만든다 |
+| Pattern | **Orchestrator-Workers** (LangGraph `Send` 기반 Dynamic Fan-out) |
+| 이전 구조 | 후보를 한 곳씩 순차 반복 (1 → 2 → 3A·3B → 4 → 5 → 1 → … → 6) |
+| 이번 구조 | 계획 수립 → 후보 수만큼 Worker 병렬 실행 → 집계 → 품질 평가 루프 → 최종 저장 |
 
-| 항목        | 팀이 정한 범위                                                                                                                                       |
-| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 평가 대상   | 국내외 비상장 AI 신약개발 스타트업, Seed~Series C, Exit 전, 대기업 비자회사                                                                          |
-| 입력        | 탐색 키워드, 기업별 공개 웹 자료, 기술·시장 PDF 15개                                                                                                |
-| 결과        | 적격 후보 전원의 점수·판정 순위표와 통과 1위의 투자 심사 보고서. 통과 기업이 없으면 “투자 추천 없음”                                              |
-| 핵심 차별점 | 최신**기업 사실은 웹**에서 확인하고, 기술·시장 **판단 기준은 RAG**로 보강; 확인·추론·결측을 구분; 점수 합산·관문·순위는 코드가 결정 |
+초기 바이오 기업은 매출만으로 평가하기 어렵습니다. 신약 후보의 개발 단계, AI 기술의 실제 검증, 제약사 계약, 시장 정의가 투자 판단을 바꿉니다. 평가 범위는 국내외 비상장 AI 신약개발 스타트업(Seed~Series C, 대기업 비자회사)입니다. **점수 합산·관문·판정·순위는 코드가 결정하고, LLM은 근거 추출과 문장 작성만 맡습니다.** 75점 통과선은 팀이 정한 심사 정책이며 실제 수익률을 뜻하지 않습니다. 세부 기준은 [투자평가기준 v4](docs/investment_criteria_v4.md), [공통 데이터 계약](docs/data_contracts.md)에 있습니다.
 
-후보 자격은 탐색과 최종 판정에서 확인합니다. **75점 통과선은 팀이 설정한 투자 심사 정책**이며 실제 수익률이나 성공 확률을 뜻하지 않습니다. 세부 기준은 [투자평가기준 v4](docs/investment_criteria_v4.md)와 [공통 데이터 계약](docs/data_contracts.md)에 있습니다.
+### 동적 처리가 고정 순서와 다른 점
 
-## 2. 에이전트와 Graph 흐름
+- **Worker 수가 실행 시점에 정해집니다.** 탐색·자격 검증을 통과한 후보 수만큼 `Send`를 만들며, 코드에 Worker 개수 상수가 없습니다.
+- **후보 수가 같은 상한에서도 키워드에 따라 달라집니다.** 같은 상한 10에서 `AI 신약개발`은 후보 9개, `AI 희귀질환 신약`은 8개였습니다(1번 에이전트 단독 실행 결과).
+- **실패한 기업은 전체를 멈추지 않고 제외됩니다.** 1회 재시도 후에도 실패하면 보고서에 "평가 제외"로 남고 나머지 기업으로 보고서를 만듭니다.
+- **보고서 품질 미달이면 다시 씁니다.** 재작성으로 고칠 수 있는 문제만 루프를 돌고, 상한에 도달하면 멈춥니다.
+
+## 2. 패턴 선택 근거
+
+- 후보 기업별 평가(프로필 → 기술·시장 → 경쟁 → 판정)는 **서로 의존하지 않습니다.** 그래서 "평가할 후보 목록을 계획 → 후보마다 Worker 병렬 실행 → 결과 집계"로 나누는 Orchestrator-Workers가 문제 구조와 맞습니다.
+- "작업이 서로 독립적인 N개로 쪼개질 때 Orchestrator가 Supervisor보다 낫다"는 기준에 해당합니다. 경쟁사 N곳을 조사해 비교 리포트를 만드는 구조와 같은 형태입니다.
+- **Supervisor를 고르지 않은 이유:** Supervisor는 하나의 대상을 놓고 매 단계 다음 작업을 고르는 데 강점이 있습니다. 이 과제는 여러 대상에 같은 평가를 하는 구조라 병렬 분할이 더 직접적이고, 기존 2~5번 에이전트를 Worker 내부 흐름으로 그대로 재사용할 수 있습니다.
+
+## 3. Graph
 
 ```mermaid
 flowchart TD
-    U[사용자 키워드] --> A1[1 후보 탐색·자격 확인]
-    A1 --> C{평가할 후보가 있는가?}
-    C -- 예 --> A2[2 기업 프로필]
-    C -- 아니요 --> A6[6 보고서]
-    A2 --> A3A[3-A 기술 RAG]
-    A2 --> A3B[3-B 시장 RAG·웹]
-    T[(기술 PDF 5개)] --> A3A
-    M[(시장 PDF 10개)] --> A3B
-    A3A --> A4[4 경쟁사 비교·SWOT]
-    A3B --> A4
-    A4 --> A5[5 투자 판단]
-    A5 --> R{미평가 후보가 남았는가?}
-    R -- 예 --> A1
-    R -- 아니요 --> A6
-    A6 --> O[순위표 · Markdown · PDF]
+    S([START]) --> O[orchestrator<br/>1번 탐색·자격검증 + 계획 수립<br/>+ 인덱스·모델 워밍업]
+    O -->|plan 비어 있음| R
+    O -->|Send × N<br/>N = len(plan)| W[worker<br/>서브그래프: 2 → 3A·3B → 4 → 5<br/>실패 시 1회 재시도 → 제외]
+    W --> R[synthesizer<br/>정렬·집계 + 보고서 초안]
+    R --> Q[quality_eval<br/>규칙 + LLM Judge · 판정만]
+    Q -->|재작성 가능 & 작성 횟수 < 상한| R
+    Q -->|그 외 모든 경우| F[finalize<br/>품질 결과 반영 · 최종 저장]
+    F --> E([END])
 ```
 
-한 후보에 대해 2번이 프로필을 확정하면 3-A·3-B가 **병렬**로 분석하고, 두 결과가 모두 온 뒤 4번이 비교합니다. 5번은 통과·보류를 모두 `evaluation_history`에 누적합니다. [`src/graph.py`](src/graph.py)는 남은 후보가 있으면 1번으로 돌아가고, 없으면 6번을 **한 번** 실행합니다. 후보가 0곳이어도 6번이 무추천 보고서를 작성합니다.
+| 노드 | 역할 | 코드 |
+|---|---|---|
+| `orchestrator` | 1번 탐색·자격 검증 결과로 후보별 `SubTask` 계획 생성. LLM Planner가 후보별 `focus`(검색 우선 확인 사항)를 채움 | [`orchestrator.py`](src/orchestration/orchestrator.py) |
+| `dispatch` | `plan` 길이만큼 `Send("worker", …)` 반환. 후보 0개면 바로 synthesizer | [`orchestrator.py`](src/orchestration/orchestrator.py) |
+| `worker` | 기업별 서브그래프(2 → 3A·3B 병렬 → 4 → 5). 재시도·제외 처리 | [`worker.py`](src/orchestration/worker.py) |
+| `synthesizer` | Worker 결과를 `task_index` 순으로 정렬·집계해 보고서 초안 작성. 품질 피드백 반영 | [`agent6_report.py`](src/agents/agent6_report.py) |
+| `quality_eval` | 규칙 검사 + LLM Judge로 판정만 함. 경로는 정하지 않음 | [`quality_eval.py`](src/orchestration/quality_eval.py) |
+| `route_after_eval` | LLM 호출 없는 순수 함수로 재작성/종료 결정 | [`routing.py`](src/orchestration/routing.py) |
+| `finalize` | 품질 결과 블록 반영, 최종 쪽수 재확인, Markdown·PDF·품질 JSON 저장 | [`finalize.py`](src/orchestration/finalize.py) |
 
-| 번호 | 역할과 책임                                                                                           | 코드                          |
-| ---- | ----------------------------------------------------------------------------------------------------- | ----------------------------- |
-| 1    | [StartupSearch](src/agents/agent1_search.py): 키워드 탐색, 자격 검증, 다음 미평가 후보 선택            | Tavily·구조화 LLM            |
-| 2    | [CompanySummary](src/agents/agent2_profile.py): 기업 프로필·사업 모델·대표 시장 표준화               | 웹검색·LLM 추출·규칙 검증   |
-| 3-A  | [TechAnalysis](src/agents/agent3a_tech.py): 기술 검증·개발 단계·규제 위험                            | 기술 RAG                      |
-| 3-B  | [MarketAnalysis](src/agents/agent3b_market.py): 대표 시장 규모·수요·성장성                           | 시장 RAG·필요 시 웹          |
-| 4    | [CompetitorAnalysis](src/agents/agent4_competitor.py): 동종사·빅테크·자체 연구/CRO 대체재 비교, SWOT | 웹검색·근거 검증             |
-| 5    | [InvestmentDecision](src/agents/agent5_decision.py): 질문별 채점, 결측·관문·판정, 이력 누적          | LLM Judge + 결정론적 코드     |
-| 6    | [ReportWriter](src/agents/agent6_report.py): 전체 순위·추천/무추천 보고서                             | 코드 정렬·LLM 문장·PDF 변환 |
+Worker 내부의 하위 에이전트(2, 3-A, 3-B, 4, 5)는 [`src/agents/`](src/agents/)의 기존 노드 함수를 그대로 사용합니다.
 
-## 3. Agentic RAG
+## 4. Orchestrator-Workers 필수 항목 대응
 
-| 코퍼스                                  |                      자료 | 검색 목적                                 |
-| --------------------------------------- | ------------------------: | ----------------------------------------- |
-| [`data/technology/`](data/technology/) |            PDF 5개, 115쪽 | AI 기술, 실험·임상 검증, 개발·규제 기준 |
-| [`data/market/`](data/market/)         |            PDF 10개, 82쪽 | 시장 정의·규모, 투자·파트너십 환경      |
-| 합계                                    | **PDF 15개, 197쪽** | 설계 산출물의 200쪽 이내 문서 풀          |
+| 필수 항목 | 구현 방식 | 코드 위치 |
+|---|---|---|
+| 서브 태스크 목록을 구조화해 State에 저장 | `plan: list[SubTask]` (`task_id`, `task_index`, `company`, `focus`, `discovery_refs`, `max_attempts`). 누구를 평가할지는 코드가, 무엇을 우선 확인할지(`focus`)는 LLM이 정함. LLM 실패 시 `focus=[]` | `orchestrator.py`, `schemas.py` |
+| 계획 수립 후 Worker 결정 (Dynamic Fan-out) | `dispatch()`가 `[Send("worker", …) for t in plan]` 반환. Worker 수 상수 없음 | `orchestrator.py`, `graph.py` |
+| Worker 결과 누적 + Synthesizer 집계 | `evaluation_history`, `references`, `worker_results`에 `operator.add` reducer. synthesizer가 `task_index` 순으로 정렬 후 집계 | `state.py`, `agent6_report.py` |
+| 일부 Worker 실패 시 Fall-back | **1회 재시도 → 실패 시 제외.** 예외를 올리지 않고 `worker_results`에 `status="excluded"`·`error` 기록. 보고서 순위표 아래 "평가 제외(사유)" 표시 | `worker.py` |
 
-[`src/rag/build_index.py`](src/rag/build_index.py)는 BGE-M3 토큰 기준 1,000토큰·200토큰 겹침으로 PDF를 분할하고 원문 쪽수·서지정보를 보존합니다. 이 환경에서 기술 122개·시장 85개 청크의 색인을 생성하고 재사용을 확인했습니다. 한국어·영어 자료를 위해 오픈소스 **BAAI/bge-m3** Dense 임베딩과 **Kiwi BM25**를 사용합니다. [`src/rag/retrieval.py`](src/rag/retrieval.py)는 두 검색의 각 top-5를 RRF로 합쳐 최종 5개 청크를 반환합니다. 문서·메타데이터·설정 해시로 색인을 재사용합니다.
+`focus`는 장식용이 아닙니다. Worker 안의 3-A/3-B가 검색 계획 단계에서 이를 검색어 힌트로 사용합니다([`rag_analysis.py`](src/agents/rag_analysis.py)).
 
-**질문 계획 → 기술/시장·주제 필터 → 하이브리드 검색 → LLM 근거 적합성 판단 → 부족하면 검색어를 바꿔 1회 재검색 → 필요한 경우 웹 보완 → 실제 사용 출처 연결**이 Agentic RAG 흐름입니다. 청크가 검색됐다는 사실만으로 특정 회사의 기술력이나 시장 규모가 증명되지는 않습니다. 인용문과 출처의 일치 여부를 검사하고도 부족하면 “정보 부족”을 남깁니다. 시장 수치는 “AI 신약”, “AI 생명공학”, “전체 전문의약품”처럼 **시장 정의·연도·단위**를 함께 적습니다. API 키가 없는 추출 모드에서도 기술·시장 분석 필드와 출처 10개가 State에 저장되는 것을 확인했습니다. 이 모드는 LLM 분석 품질을 검증하지 않습니다.
+## 5. State Schema 설계
 
-[검색 평가 가이드](docs/taewoo_quickstart.md)에 기록된 **24문항 개발셋** 결과를 이 환경의 새 색인으로 다시 측정했습니다. 수치는 다음과 같습니다.
+부모 State는 Input / Working / Eval / Loop 4구역으로 나눴습니다. 후보별 중간 결과(프로필, 분석 글)는 부모가 아닌 `WorkerState`에만 둡니다(Agent Scoping). 병렬 Worker가 같은 단일값 키를 덮어쓰는 문제를 구조적으로 막기 위해서입니다.
 
-| 검색 방식        | Hit@1 | Hit@3 | Hit@5 | MRR@5 |
-| ---------------- | ----: | ----: | ----: | ----: |
-| BGE-M3 Dense     | 0.417 | 0.750 | 0.833 | 0.588 |
-| Kiwi BM25        | 0.333 | 0.542 | 0.708 | 0.470 |
+| 구역 | 필드 |
+|---|---|
+| Input | `input_keyword`, `max_candidates` |
+| Working | `candidate_startups`, `plan`, `evaluation_history`⁺, `references`⁺, `worker_results`⁺, `final_report`, `report_draft`, `report_pages` |
+| Eval | `eval_result`, `eval_feedback` |
+| Loop | `trace_id`, `step_count`⁺, `node_status`⁺, `report_attempts`, `last_error` |
+
+⁺ reducer 보유 (`operator.add` 또는 `merge_dict`)
+
+| 항목 | 설계 | 코드 위치 |
+|---|---|---|
+| 제어 vs 페이로드 분리 | 4구역 주석 블록으로 분리. 조정에 필요한 최소치는 Loop 구역에만 둠. 후보별 페이로드는 `WorkerState`로 격리 | `state.py` |
+| 관측성 위치 | 결정 로그(계획 근거, 재시도·제외 사유, Worker별 `duration_ms`, 품질 판정·종료 사유)는 State가 아닌 `outputs/trace/{trace_id}.jsonl`과 LangSmith에 기록. State에는 판정 결과와 Worker 결과 요약만 | `observability.py` |
+| 지속성 비용 | 검색 원문·RAG 청크·Tavily 응답은 State에 넣지 않음(탐색 원본은 `outputs/agent1/*.json`). 누적 필드는 기업당 1건이라 `max_candidates`로 크기가 제한됨 | `agent1_search.py`, `state.py` |
+| 상관 | 실행 시작 시 `trace_id = uuid4().hex` 생성 → State, JSONL 로그, LangSmith `metadata.trace_id`, 체크포인트 `thread_id`, 출력 파일명에 공통 사용 | `state.py`, `app.py` |
+| 재개/복구 | 체크포인터 + `thread_id=trace_id`. 현재 `InMemorySaver`라 **같은 프로세스 안에서만** 재개 가능. `node_status`에 task별 `done/excluded`, `worker_results[].error`, `last_error` 보존 | `graph.py` |
+| 동시 처리 | 병렬 Worker가 쓰는 부모 키는 전부 reducer 보유. reducer 없는 `last_error`는 Worker가 쓰지 않음(직렬 노드만). `max_concurrency`로 API 한도 보호 | `state.py`, `worker.py`, `app.py` |
+| 종료 보장 | ① Worker 재시도 상한 2회 ② API 호출 단위 timeout(LLM 60초·Tavily 30초) ③ 보고서 작성 상한 3회 ④ 재작성 불가 문제만 남으면 즉시 종료 ⑤ `step_count` 상한(`2N+10`) ⑥ `recursion_limit`. 모든 종료 경로는 `finalize`를 거쳐 `termination_reason` 기록 | `config.py`, `routing.py`, `finalize.py` |
+
+### Fan-out / Fan-in 대응
+
+| 항목 | 대응 |
+|---|---|
+| 병렬 정합성 | 공유 키는 전부 reducer. 각 Worker는 자기 결과만 반환 |
+| 부분 실패 | Worker 안에서 예외를 잡아 재시도 → 제외로 기록하고 그래프는 계속 진행 |
+| 동시성 제어 | `max_concurrency` (`WORKER_CONCURRENCY`, 기본 3) |
+| 멈춘 브랜치 | API 호출 단위 timeout으로 멈춘 호출이 예외로 끝나게 하고 재시도/제외 정책으로 처리. 스레드 강제 종료는 쓰지 않음(실행 중인 스레드를 멈추지 못해 같은 기업이 중복 평가되기 때문). **한계:** timeout이 없는 외부 호출이 멈추면 해당 Worker를 강제로 끊지 못함 |
+| 결과 통합 순서 | Worker 완료 순서와 무관하게 `task_index` 순으로 정렬. REFERENCE 번호는 안정 키로 정렬한 뒤 부여 |
+| 관측성 | Worker별 `task_id`·`attempts`·`duration_ms`·`status`를 `worker_results`와 결정 로그에 기록. `summarize_trace(trace_id)`로 가장 느린 Worker 확인 |
+
+## 6. 품질 평가 (Hybrid: 규칙 + LLM Judge)
+
+| 평가 항목 | 규칙 검사 (결정적) | LLM Judge (1~5점) |
+|---|---|---|
+| Groundedness | 본문 출처 표기가 REFERENCE에 존재 · REFERENCE ≥ 3개 | 보고서에 등장하는 **모든 기업**의 근거 묶음과 주요 주장을 대조 |
+| 중립성 | 금지 표현(최고의·압도적·반드시 투자·확실한 수익·유일한) 미검출 | 근거 없는 우열 판정·과장 표현 |
+| 편향 통제 | 단일 발행처 비중 ≤ 50% · 리스크/보류 사유 문장 존재 | 유리한 근거만 쓰고 리스크·결측을 숨겼는지 |
+| 형식 | 첫 장 SUMMARY, 마지막 장 REFERENCE · 최대 10쪽 | — |
+
+**근거 종류 구분.** Judge에 넘기는 근거는 `evidence_kind`로 나눕니다. `source_excerpt`는 인용문이 RAG 청크 원문에 글자 그대로 있는지 코드로 재확인한 것만입니다. 그 외 분석 문장과 웹 출처는 `analysis_rationale`로 두어 "분석 근거와의 일관성"만 평가합니다. 어느 방식으로 검증했는지는 `source_verification`에 기록합니다.
+
+**판정 필드.**
+
+| 필드 | 의미 |
+|---|---|
+| `passed` | 모든 규칙 통과 + Judge 완료 + Judge 3항목 모두 ≥ 3점 + 쪽수 확인 |
+| `can_rewrite` | 재작성으로 고칠 수 있는 문제가 남아 있음. Judge가 3점 미만을 주고 수정 사항을 비워도 코드가 기본 피드백을 넣어 루프가 끊기지 않음 |
+| `judge_status` | `completed` / `unavailable` / `stale`(finalize가 본문을 축약해 Judge가 평가한 본문과 달라짐) |
+| `termination_reason` | `passed` / `unfixable`(데이터 부족 등) / `evaluation_unavailable`(평가 자체를 못 함) / `max_attempts` / `max_steps` |
+
+**판정과 분기 분리.** `quality_eval`은 판정만 State에 쓰고, 다음 경로는 LLM 호출이 없는 순수 함수 `route_after_eval`이 정합니다. Judge 출력은 실행마다 달라질 수 있지만, 같은 판정 결과에는 항상 같은 경로로 갑니다.
+
+**종료 순서:** step 상한 → 통과 → (재작성 가능하면 작성 상한 확인 후 재작성) → 평가 불가 → 재작성 불가. 모든 종료는 `finalize`를 거칩니다. finalize는 새 LLM 문장을 만들지 않고, 품질 결과 블록을 붙인 뒤 다시 렌더링해 **최종 쪽수로 판정을 확정**합니다. 저장되는 Markdown과 PDF는 같은 최종 본문에서 만들어집니다.
+
+**중립성 해석.** 이 과제는 투자 판정을 내리는 보고서이므로 "통과/보류와 순위는 코드 규칙으로만 결정되고, LLM이 쓴 문장은 근거 없는 우열 판정을 하지 않는다"를 중립성의 정의로 사용합니다.
+
+## 7. 시연
+
+| 구분 | 목적 | 설정 |
+|---|---|---|
+| 실제 API 실행 A | 동적 계획·병렬 실행 | `--keyword "AI 신약개발" --max-candidates 10` |
+| 실제 API 실행 B | Worker 수 차이 | `--keyword "AI 희귀질환 신약" --max-candidates 10` |
+| 실패 주입 시연 | Fallback 증명 | `FORCE_FAIL_COMPANY=<회사명>` — **의도적으로 실패를 주입한 시연** |
+| 고정 fixture 실행 | 재현 가능한 동작 검증 | `--fixture quality_loop` 외 `empty`·`two`·`three`·`partial_fail`·`all_fail` |
+
+- 상한 5에서는 두 키워드 모두 후보 5개가 꽉 차 차이가 드러나지 않았습니다. 그래서 상한을 10으로 고정하고 키워드만 바꿉니다.
+- 1번 에이전트의 자격 판단은 LLM이 하므로 실행마다 후보 수가 1~2개 달라질 수 있습니다.
+- 검색 결과는 매번 달라지므로 재현 가능한 동작(품질 루프, 부분·전체 실패, 후보 0개)은 fixture로 검증합니다. fixture는 실제 API·Judge·PDF를 실행하지 않습니다.
+
+<!-- 캡처 추가: tracing-1.png … (실행 A·B Worker 수, worker 아래 중첩, 실패 주입, fixture quality_loop) -->
+
+## 8. Tech Stack
+
+| 구분 | 사용 |
+|---|---|
+| Framework | LangGraph (`StateGraph`, `Send`, conditional edges, 체크포인터), LangChain |
+| LLM (Generator) | OpenAI `gpt-4o-mini`, temperature 0 |
+| LLM (Judge) | OpenAI `gpt-4o-mini` 구조화 출력 (quality_eval, 5번 질문별 채점) |
+| Retrieval | Dense(BGE-M3) + BM25(Kiwi) RRF 하이브리드, top-5 |
+| Embedding | `BAAI/bge-m3` |
+| Web Search | Tavily |
+| Report | Markdown → HTML → WeasyPrint PDF |
+| Tracing | LangSmith, JSONL 결정 로그 |
+
+### Retrieval 평가 (24문항 개발셋)
+
+| 검색 방식 | Hit@1 | Hit@3 | Hit@5 | MRR@5 |
+|---|---:|---:|---:|---:|
+| BGE-M3 Dense | 0.417 | 0.750 | 0.833 | 0.588 |
+| Kiwi BM25 | 0.333 | 0.542 | 0.708 | 0.470 |
 | Dense + BM25 RRF | 0.542 | 0.667 | 0.792 | 0.619 |
 
-하이브리드는 이 개발셋에서 Hit@1·MRR을 높였지만 **Hit@3·5는 Dense보다 낮습니다.** 이는 작은 개발셋 결과이지 투자 평가의 타당성 검증이 아닙니다.
+하이브리드는 Hit@1·MRR을 높였지만 Hit@3·5는 Dense보다 낮습니다. 작은 개발셋 결과이며 투자 평가의 타당성 검증은 아닙니다. 코퍼스는 기술 PDF 5개(115쪽), 시장 PDF 10개(82쪽)입니다. 상세는 [RAG 실행 가이드](docs/taewoo_quickstart.md)에 있습니다.
 
-## 4. 공통 State와 투자 판단
-
-모든 노드는 [`InvestmentState`](src/state.py)를 입력받아 자기 역할의 변경분만 반환합니다. `startup_profile`과 현재 분석은 다음 후보에서 초기화하고, `evaluation_history`와 `references`는 reducer로 누적합니다. 미확인은 JSON `null`, 확인 결과 없는 목록은 `[]`로 구분합니다. 금액·날짜·투자 단계와 출처 형식은 [공통 데이터 계약](docs/data_contracts.md)을 따릅니다.
-
-| 평가 영역    | 비중 | 질문                                              |
-| ------------ | ---: | ------------------------------------------------- |
-| 창업자       |  30% | QA 팀 신뢰도 · QB 장기 헌신 · QC 실행력         |
-| 시장성       |  25% | QD 시장 크기 · QE 미충족 수요 · QF 확장 기회    |
-| 제품·기술력 |  15% | QG AI 독창성 · QH 구현·검증 단계                |
-| 경쟁우위     |  10% | QI 차별성 · QJ 진입장벽                          |
-| 실적         |  10% | QK 비용 지불 이유 · QL 초기 반응 · QM 수익 모델 |
-| 투자조건     |  10% | QN 동단계 밸류에이션 · QO 투자 구조              |
-
-질문별 1~5점과 근거는 LLM이 구조화해 제안하고, **코드가** 결측 점수·가중 합산·관문·최종 판정·정렬을 처리합니다. `영역 점수 = 질문 평균 ÷ 5 × 100`, `총점 = Σ(영역 점수 × 비중)`입니다.
-
-1. 자격 관문(상장·Series D 이상, 대기업 자회사)이 해당하거나 **미확인**이면 보류합니다. 임상 실패·창업자 이탈/분쟁·핵심 특허 패소·투자 공백과 구조조정 등 위험 관문이 확인되면 보류합니다. 위험 관문 미확인은 평가를 계속하되 표시합니다.
-2. 결측 비중 **30% 이상**이면 “근거 부족”으로 보류합니다. 근거 없는 질문은 2점, QN·QO는 3점으로 기록하고 모두 결측 비중에 넣습니다.
-3. 총점 **75점 이상**이고 창업자 영역 **60점 이상**이면 통과합니다. 통과 1위만 “투자 추천”이고 나머지는 “투자 검토 가능”입니다. 총점 → 창업자 → 시장성으로 순위를 정합니다.
-
-공식 자료에서 **없다고 확인된 사실**과 자료를 **찾지 못한 상태**는 다르게 처리합니다. 2번이 `pipeline` 또는 `platform`으로 확정한 사업 모델에 따라 QD 시장 크기의 기준표도 다릅니다. 상세한 15문항 채점표는 [투자평가기준 v4](docs/investment_criteria_v4.md)에 있습니다.
-
-## 5. 코드 구조와 실행 방법
+## 9. 디렉토리 구조
 
 ```text
 .
-├── app.py                       # 개별 노드 / 전체 Graph CLI
+├── app.py                        # CLI: 전체 실행 · --fixture · --agent 개별 실행
 ├── src/
-│   ├── agents/                  # 1, 2, 3-A, 3-B, 4, 5, 6
-│   ├── rag/                     # PDF 적재·청킹·FAISS·BM25·검색 평가
-│   ├── tools/                   # 웹검색·LLM·보고서 변환
-│   ├── graph.py                 # 병렬 합류, 후보 반복, 종료 분기
-│   ├── state.py                 # 공통 State·누적 reducer
-│   └── schemas.py               # 노드별 Update 형식
-├── data/{technology,market}/    # 원본 PDF 15개
-├── docs/                       # 투자 기준·데이터 계약·실행 가이드
-├── samples/                    # 가상 입력·검색 평가 질문
-├── tests/                      # 노드·RAG·Graph 테스트
+│   ├── orchestration/            # 조정 계층
+│   │   ├── orchestrator.py       # 계획 수립 + dispatch(Send) + Planner 프롬프트
+│   │   ├── worker.py             # 기업별 서브그래프 + 재시도/제외
+│   │   ├── quality_eval.py       # 규칙 + LLM Judge (판정만)
+│   │   ├── routing.py            # decide_termination · route_after_eval (순수 함수)
+│   │   ├── finalize.py           # 품질 결과 반영 + 최종 저장
+│   │   ├── observability.py      # JSONL 결정 로그 · Worker 요약
+│   │   └── fixtures.py           # 재현용 가상 노드
+│   ├── agents/                   # 하위 에이전트 1, 2, 3-A, 3-B, 4, 5, 6
+│   ├── rag/                      # PDF 적재·청킹·FAISS·BM25·검색 평가
+│   ├── tools/                    # 웹검색·구조화 LLM·보고서 변환
+│   ├── graph.py                  # 최상위 그래프 조립만
+│   ├── state.py                  # InvestmentState(부모) + WorkerState
+│   ├── schemas.py                # SubTask · WorkerResult · EvalVerdict 등
+│   └── config.py                 # 상한·상수
+├── data/{technology,market}/     # 원본 PDF 15개
+├── docs/                         # 투자 기준·데이터 계약·실행 가이드
+├── tests/                        # 노드·라우팅·품질·Graph 테스트
 └── pyproject.toml / uv.lock / .env.example
 ```
 
+## 10. Usage
 
-### 5-1. 기본 실행방법
-
-[uv](https://docs.astral.sh/uv/getting-started/installation/)와 Python **3.11.11**이 필요합니다. `--extra rag`는 PDF·FAISS·임베딩 의존성을 함께 설치합니다.
+[uv](https://docs.astral.sh/uv/getting-started/installation/)와 Python 3.11.11이 필요합니다.
 
 ```bash
 uv python install 3.11.11
 uv sync --extra rag
-cp .env.example .env
+cp .env.example .env      # OPENAI_API_KEY, TAVILY_API_KEY, LANGSMITH_* 입력
 
-# PDF 보고서 출력을 위한 시스템 라이브러리 설치 (WeasyPrint 의존성)
+# PDF 보고서용 시스템 라이브러리 (WeasyPrint)
 brew install pango                       # macOS
 # sudo apt-get install -y libpango-1.0-0 # Ubuntu/Debian
-# Windows: GTK3-Runtime Win64 설치 (https://github.com/tschoonj/GTK-for-Windows-Runtime-Environment-Installer/releases)
-#          (설치 경로: `C:\Program Files\GTK3-Runtime Win64`, 미설치 시 Markdown만 자동 보존)
+# Windows: GTK3-Runtime Win64 설치 (미설치 시 Markdown만 저장)
 
-# PDF 색인 1회 생성·재사용 (첫 실행은 임베딩 모델 다운로드)
+# RAG 색인 1회 생성 (첫 실행은 임베딩 모델 다운로드)
 uv run --extra rag python -m src.rag.build_index
-
-# 키 설정 후, 실제 후보 탐색부터 전체 평가·보고서 생성
-# Agent1에서 선정할 후보를 max-candidates로 지정합니다.(생략시, 깁본값 15 적용)
-uv run --extra rag python app.py --keyword "AI 신약개발 스타트업" --max-candidates 3
 ```
 
-### 5-2. 별도 테스트 및 시연
+**LangSmith 트레이싱** (`.env`):
 
-```Shell
-# 키 없이 가상 평가 이력으로 전체 Graph의 보고서 경로 시연
-REPORT_USE_LLM=0 uv run --extra rag python app.py --state samples/report_state.json
-REPORT_USE_LLM=0 uv run --extra rag python app.py --state samples/report_state_no_pass.json
+```bash
+LANGSMITH_TRACING=true
+LANGSMITH_API_KEY=lsv2_...
+LANGSMITH_PROJECT=invest-agent-orchestrator
+```
 
-# 자동 테스트·검색 평가
+**실행:**
+
+```bash
+# 실제 실행 (Tavily dev 키는 검색 간격 5초 권장)
+TAVILY_MIN_INTERVAL_SECONDS=5 uv run --extra rag python app.py --keyword "AI 신약개발" --max-candidates 10
+
+# 실패 주입 시연
+FORCE_FAIL_COMPANY="<회사명>" uv run --extra rag python app.py --keyword "AI 신약개발" --max-candidates 10
+
+# 키 없이 재현 가능한 fixture 실행
+uv run --extra rag python app.py --fixture quality_loop
+
+# 개별 에이전트 실행
+uv run --extra rag python app.py --agent 1 --keyword "AI 신약개발" --max-candidates 10
+
+# 테스트
 uv run --extra rag python -m pytest -q
-uv run --extra rag python -m src.rag.evaluate
 ```
 
-`app.py --agent 1|2|3a|3b|4|5|6 --state <JSON>`으로 개별 노드를 실행할 수도 있습니다. 3-A/3-B 샘플·색인 명령은 [RAG 실행 가이드](docs/taewoo_quickstart.md)에 있습니다. 전체 Graph는 API 호출과 색인 준비가 필요하며, 실제 기업 4곳으로 탐색부터 보고서 생성까지 실행했습니다(6장). 가상 이력 명령은 실제 검색·RAG·채점을 대신하지 않고 보고서 생성 경로만 검증합니다.
+| 결과물 | 위치 |
+|---|---|
+| 보고서 | `outputs/investment_report.md`, `.pdf` |
+| 품질 판정 | `outputs/{stem}_quality.json` |
+| 결정 로그 | `outputs/trace/{trace_id}.jsonl` |
+| 실행 State | `outputs/pipeline_{trace_id}_state.json` |
 
-6번은 Markdown → HTML → WeasyPrint로 PDF를 만듭니다. 시스템 Pango가 필요합니다(macOS: `brew install pango`; Windows: [GTK3-Runtime](https://github.com/tschoonj/GTK-for-Windows-Runtime-Environment-Installer/releases) 설치; 다른 OS는 [설치 안내](https://doc.courtbouillon.org/weasyprint/stable/first_steps.html)). Pango 라이브러리 미설치 환경에서는 Markdown만 정상 저장되는 fallback이 동작합니다. 기본 결과는 `outputs/investment_report.md`와 `.pdf`이며, LLM Judge를 실행한 경우에만 `_judge.json`이 추가됩니다. `REPORT_OUTPUT_DIR`·`REPORT_FILE_STEM`으로 저장 위치와 이름을 바꿀 수 있습니다. 생성 파일과 색인은 Git에서 제외됩니다.
+주요 환경변수: `WORKER_CONCURRENCY`(기본 3), `TAVILY_MIN_INTERVAL_SECONDS`(기본 2), `REPORT_INTERNAL_JUDGE`(기본 0), `FORCE_FAIL_COMPANY`(시연용), `ALLOW_CACHED_FALLBACK`(실제 시연에서는 0). 전체 목록은 [`.env.example`](.env.example)에 있습니다.
 
-## 6. 투자 보고서의 핵심 포인트
-
-**제출된 2쪽짜리 투자 심사 보고서의 결론은 “투자 추천 없음”입니다.** AI 신약개발 후보 4곳의 점수는 아토매트릭스 58.7점, 아이젠사이언스 49.3점, 히츠 48.5점, 신세틱게슈탈트 45.3점 순이며, 통과 0곳·보류 4곳입니다. 최고점도 75점 기준에 못 미쳤고, **3곳은 결측 비중이 60~72%로 30% 보류 기준을 초과**했습니다. 나머지 1곳은 보고서에서 “핵심 특허 분쟁 패소” 관문으로 보류됐다고 기록합니다. 이는 해당 법적 사실을 README가 별도로 검증했다는 뜻은 아닙니다.
-
-이 결과의 핵심은 낮은 점수만이 아니라 **판단 근거의 공백**입니다. 최고점인 아토매트릭스도 장기 헌신·확장 기회·AI 독창성·검증 단계·차별성·진입장벽·초기 반응·수익 모델·밸류에이션·투자 구조 등 10개 질문의 근거가 부족했습니다. 보고서는 주력 파이프라인의 임상 중단·실패 여부와 핵심 특허 분쟁 여부도 미확인 관문으로 남기고, 이 근거를 확보한 뒤 같은 기준으로 재평가할 것을 제안합니다. 첫 페이지는 결론·순위·보류 사유를, 둘째 페이지는 재검토 조건과 사용 출처를 보여줍니다. **이 문단은 제출 PDF의 결과 요약이며, 원자료와 개별 기업 사실의 독립 검증 결과는 아닙니다.**
-
-## 7. Lessons Learned
+## 11. Lessons Learned
 
 ### 검색된 문장과 기업의 경쟁력 증거는 다릅니다 (박민규)
 
@@ -162,31 +249,31 @@ uv run --extra rag python -m src.rag.evaluate
 
 ### RAG에서는 검색 결과를 분석 근거로 사용할 수 있는지 검증하는 과정이 중요했습니다 (구태우)
 
-수업에서 배운 PDF 분할, 벡터 검색, Kiwi 기반 키워드 검색, LangGraph의 재검색 흐름을 기술·시장 분석 에이전트에 적용했습니다. BGE-M3와 BM25를 결합해 관련 자료를 찾았지만, 검색된 문장이 있다는 것만으로 해당 기업의 기술력이나 시장성을 설명할 수 있는 것은 아니었습니다. 실제 실행에서도 LLM이 인용문과 출처를 잘못 연결하는 경우가 있어 원문과 출처를 검증하고, 근거가 부족하면 한 번 재검색한 뒤에도 확인되지 않는 내용은 “정보 부족”으로 표시했습니다. 이를 통해 RAG는 자료를 잘 찾는 것뿐 아니라 산업 전체의 정보와 개별 기업의 증거를 구분하고, 근거의 한계를 결과에 드러내는 설계가 중요하다는 점을 배웠습니다.
+BGE-M3와 BM25를 결합해 관련 자료를 찾았지만, 검색된 문장이 있다는 것만으로 해당 기업의 기술력이나 시장성을 설명할 수 있는 것은 아니었습니다. LLM이 인용문과 출처를 잘못 연결하는 경우가 있어 원문과 출처를 검증하고, 근거가 부족하면 한 번 재검색한 뒤에도 확인되지 않는 내용은 "정보 부족"으로 표시했습니다.
 
 ### LLM에 맡길 부분과 코드로 처리할 부분을 나눠야 했습니다 (배재연)
 
-**목차를 먼저 정하면 개발이 빠릅니다.** 설계서 8장에 목차와 항목별 입력 데이터를 미리 정해 둬서 그대로 코드로 옮길 수 있었습니다. **숫자와 형식은 코드, 문장만 LLM에 맡깁니다.** LLM이 본문 번호와 점수를 틀리게 적는 것을 보고 틀리면 안 되는 부분을 코드로 옮겼습니다. **LLM-as-a-Judge도 기준이 구체적이어야 합니다.** 같은 모델이 채점하니 처음엔 후했습니다. 감점 기준을 명확히 적어 주자 실제 오류를 잡았습니다. 이는 강의에서 다룬 “자기 모델 평가” 문제와도 연결됩니다.
+숫자와 형식은 코드, 문장만 LLM에 맡깁니다. LLM이 본문 번호와 점수를 틀리게 적는 것을 보고 틀리면 안 되는 부분을 코드로 옮겼습니다. LLM-as-a-Judge도 감점 기준을 구체적으로 적어야 실제 오류를 잡았습니다.
 
 ### 투자 판단 에이전트는 받은 근거를 검증하고 다음 단계로 넘기는 연결 지점이었습니다 (구본준)
 
-LLM은 질문별 채점만 하고, 결측 처리·합산·관문·판정은 코드가 맡아 같은 입력에는 항상 같은 판정이 나오도록 했습니다. 2번의 사업 모델 분류는 다시 하지 않고, 관문의 `None`은 미확인으로 남겼습니다. 질문별 근거·출처는 `question_evidence`에 담아 6번 보고서가 인용만 하도록 연결했습니다. 판정 품질은 결국 앞 단계가 넘겨주는 근거에 달려 있어서, 근거가 부족하면 억지로 추천하지 않고 보류하는 구조가 더 안전하다고 느꼈습니다.
+LLM은 질문별 채점만 하고, 결측 처리·합산·관문·판정은 코드가 맡아 같은 입력에는 항상 같은 판정이 나오도록 했습니다. 근거가 부족하면 억지로 추천하지 않고 보류하는 구조가 더 안전했습니다.
 
 ### 에이전트는 기능에 집중하고 구조는 단순하게 유지해야 했습니다 (원종현)
 
-후보 탐색 에이전트에 검증과 재검색을 과하게 추가하면서 코드와 실행 시간이 불필요하게 늘어났습니다. 후보 수집·자격 판단·다음 후보 선택이라는 핵심 기능에 집중하고, 공통 State의 입출력 계약을 유지하면서 구조를 단순화하는 것이 협업과 유지보수에 더 중요하다는 점을 배웠습니다.
+검증과 재검색을 과하게 추가하면 코드와 실행 시간이 불필요하게 늘어납니다. 핵심 기능에 집중하고 공통 State의 입출력 계약을 유지하는 것이 협업과 유지보수에 더 중요했습니다.
 
 ### LLM에게는 추출을, 판정은 검증 가능한 규칙에 맡겨야 했습니다 (김한솔)
 
-LLM의 출력은 결론이 아닌 검증 대상이며, 결과를 좌우하는 판단일수록 검증 가능한 규칙에 두어야 한다는 것을 배웠습니다. 기업 프로필을 수집하는 2번 에이전트를 맡으며 LLM이 제휴 제약사를 모회사로 오인해 유망 기업이 “대기업 자회사” 관문으로 탈락할 뻔한 오류가 반복됐습니다. 프롬프트 보강만으로는 실행마다 달라지는 출력을 통제할 수 없었고, LLM의 역할을 “근거가 달린 사실 추출”로 한정한 뒤 판정은 결정론적 코드 규칙으로 검증하도록 구조를 바꾸면서 해결했습니다. 앞으로도 LLM의 추출과 규칙의 판정을 먼저 구분하는 것을 설계 원칙으로 가져가겠습니다.
+LLM이 제휴 제약사를 모회사로 오인해 유망 기업이 "대기업 자회사" 관문으로 탈락할 뻔한 오류가 반복됐습니다. LLM의 역할을 "근거가 달린 사실 추출"로 한정하고 판정은 결정론적 규칙으로 검증하도록 바꾸면서 해결했습니다.
 
-## 8. Contributors
+## 12. Contributors
 
-| 담당자 | 개발 파트                                                                                    | 주요 기여                                             |
-| ------ | -------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
-| 원종현 | [1. 스타트업 탐색](src/agents/agent1_search.py)                                               | 후보 수집·자격 확인·다음 평가 후보 선택             |
-| 김한솔 | [2. 기업 프로필](src/agents/agent2_profile.py)                                                | 기업 정보 수집·표준화 및 근거 기반 프로필 생성       |
-| 구태우 | [3-A. 기술 분석](src/agents/agent3a_tech.py) · [3-B. 시장 분석](src/agents/agent3b_market.py) | 기술·시장 문서 RAG 검색과 분석 근거 검증             |
-| 박민규 | [4. 경쟁사 비교](src/agents/agent4_competitor.py)                                             | 동종사·대체재 비교, SWOT와 출처 검증                 |
-| 구본준 | [5. 투자 판단](src/agents/agent5_decision.py)                                                 | 질문별 근거 검토, 가중 채점·관문·판정 및 평가 이력  |
-| 배재연 | [6. 보고서 작성](src/agents/agent6_report.py)                                                 | 후보 순위·핵심 근거 정리와 Markdown·PDF 보고서 생성 |
+| 담당자 | 수행 역할 | 주요 파일 |
+|---|---|---|
+| 구본준 | 공용 State·스키마·그래프 조립, 종료 라우팅, fixture, 통합 실행 | `state.py`, `schemas.py`, `graph.py`, `routing.py`, `fixtures.py`, `app.py` |
+| 박민규 | Orchestrator 계획 수립·Dynamic Fan-out, 3-A/3-B focus 연결 | `orchestrator.py`, `rag_analysis.py` |
+| 원종현 | Worker 서브그래프, 재시도·제외 Fall-back | `worker.py` |
+| 김한솔 | 품질 평가(규칙 + LLM Judge, 근거 묶음) | `quality_eval.py` |
+| 배재연 | Synthesizer 보고서 집계, finalize 최종 저장 | `agent6_report.py`, `finalize.py` |
+| 구태우 | 관측성(결정 로그·Worker 요약), LangSmith 연동, 시연 키워드 검증, README | `observability.py`, `README.md` |
