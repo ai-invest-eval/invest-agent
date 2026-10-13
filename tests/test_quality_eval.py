@@ -231,3 +231,30 @@ def test_sample_report_state_runs():
     v = quality_eval({**state, "report_pages": 3}, GOOD)["eval_result"]
     assert v["source_verification"] in {"consistency_only", "mixed", "excerpt"}
     assert isinstance(rule_checks(state["final_report"], None, 3)[0], dict)
+
+
+def test_no_pass_held_details_are_judged():
+    """무추천 보고서 3장(상위 후보 상세 검토)의 LLM 문장도 채점 대상이다."""
+    from src.agents.agent6_report import HeldSections
+    from src.orchestration.quality_eval import judge_targets
+
+    fields = [f for f in HeldSections.model_fields if f.startswith("s2_")]
+    detail = {"company": "B", **{f: f"{f} 문장" for f in fields}}
+    draft = {"kind": "no_pass", "payload": {"summary_reasons": ["보류 사유"], "top_gap": "", "recheck": "",
+                                            "details": [detail]}}
+    names = [n for n, _ in judge_targets({"report_draft": draft})]
+    held = [n for n in names if n.startswith("3.1.")]
+    assert len(held) == len(fields)
+    assert "3.1.7 B 상세 검토" in held
+
+
+def test_bundle_includes_held_detail_companies():
+    """3장에서 상세 검토한 기업은 최고점 후보가 아니어도 질문별 근거를 넣는다."""
+    state = {"evaluation_history": _records()}
+    for r in state["evaluation_history"]:
+        r["verdict"] = "보류"
+    state["evaluation_history"][1]["total"] = 50.0   # 최고점 후보 = B
+    state["report_draft"] = {"kind": "no_pass", "payload": {"details": [{"company": "A"}, {"company": "B"}]}}
+    bundle, _ = build_evidence_bundle(state, chunks={})
+    assert any(x["company"] == "A" and x["evidence_kind"] == "analysis_rationale" for x in bundle)
+    assert any(x["company"] == "B" and x["evidence_kind"] == "analysis_rationale" for x in bundle)
