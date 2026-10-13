@@ -49,12 +49,13 @@ def clear_failure_injection(monkeypatch):
 
 @pytest.fixture
 def fake_nodes(monkeypatch):
-    def install(failures=None, *, parallel=False):
+    def install(failures=None, *, parallel=False, parallel_failures=False):
         calls = []
         attempts = Counter()
         guard = Lock()
         barrier = Barrier(2) if parallel else None
         failures = failures or {}
+        failure_barrier = Barrier(2) if parallel_failures else None
 
         def profile(state):
             name = state["selected_startup"]["name"]
@@ -65,6 +66,8 @@ def fake_nodes(monkeypatch):
             assert state.get("startup_profile") is None
             assert not state.get("evaluation_history")
             if attempt <= failures.get(name, 0):
+                if failure_barrier:
+                    failure_barrier.wait(timeout=5)
                 raise TimeoutError("profile timeout")
             return {"startup_profile": {"name": name}}
 
@@ -188,8 +191,10 @@ def test_bad_evaluation_history_is_not_success(monkeypatch, records):
         "references": payload()["references"],
     }
     monkeypatch.setattr(worker, "build_worker_graph", lambda: graph)
-    with pytest.raises(ValueError, match="평가 이력 1건"):
-        worker.run_worker(payload(), {})
+    result = worker.run_worker(payload(), {})
+    assert result["worker_results"][0]["status"] == "excluded"
+    assert result["worker_results"][0]["attempts"] == 2
+    assert "평가 이력 1건" in result["worker_results"][0]["error"]
 
 
 def test_run_worker_resets_internal_fields_and_preserves_input(monkeypatch):
@@ -246,5 +251,128 @@ def test_reference_prefix_must_be_preserved(monkeypatch):
         "references": [],
     }
     monkeypatch.setattr(worker, "build_worker_graph", lambda: graph)
-    with pytest.raises(ValueError, match="탐색 출처"):
-        worker.run_worker(payload(), {})
+    result = worker.run_worker(payload(), {})
+    assert result["worker_results"][0]["status"] == "excluded"
+    assert "탐색 출처" in result["worker_results"][0]["error"]
+
+
+def test_failed_first_attempt_then_success(fake_nodes):
+    calls, attempts = fake_nodes({"Alpha": 1})
+    result = worker.run_worker(payload(), {})
+    assert attempts["Alpha"] == 2
+    assert result["worker_results"][0]["status"] == "done"
+    assert result["worker_results"][0]["attempts"] == 2
+    assert result["worker_results"][0]["error"] is None
+    assert len(result["evaluation_history"]) == 1
+    assert len(result["references"]) == 2
+    assert calls[-1] == ("Alpha", "decision")
+
+
+@pytest.mark.parametrize("max_attempts", [1, 2, 3])
+def test_attempt_limit_returns_excluded(fake_nodes, max_attempts):
+    _, attempts = fake_nodes({"Alpha": 99})
+    result = worker.run_worker(payload(max_attempts=max_attempts), {})
+    assert attempts["Alpha"] == max_attempts
+    assert set(result) == {"worker_results", "node_status", "step_count"}
+    summary = result["worker_results"][0]
+    assert summary["status"] == "excluded"
+    assert summary["attempts"] == max_attempts
+    assert summary["error"] == "TimeoutError: profile timeout"
+    assert result["node_status"] == {"trace:0": "excluded"}
+    assert result["step_count"] == 1
+
+
+def test_retry_discards_failed_attempt_mutations(monkeypatch):
+    state = payload()
+    before = copy.deepcopy(state)
+    attempts = []
+
+    def invoke(current, config):
+        attempts.append(copy.deepcopy(current))
+        if len(attempts) == 1:
+            current["references"].append(reference("Alpha", "profile"))
+            current["evaluation_history"].append({"name": "bad"})
+            current["task"]["focus"].append("bad")
+            current["tech_analysis"] = "bad"
+            raise RuntimeError("late failure")
+        assert current == attempts[0]
+        return {
+            **current,
+            "evaluation_history": [{"name": "Alpha"}],
+            "references": current["references"] + [reference("Alpha", "tech", 2)],
+        }
+
+    graph = Mock(invoke=Mock(side_effect=invoke))
+    builder = Mock(return_value=graph)
+    monkeypatch.setattr(worker, "build_worker_graph", builder)
+    result = worker.run_worker(state, {})
+    assert state == before
+    assert result["references"] == [reference("Alpha", "tech", 2)]
+    assert result["evaluation_history"] == [{"name": "Alpha"}]
+    builder.assert_called_once()
+
+
+@pytest.mark.parametrize("exc", [TimeoutError("timeout"), RuntimeError("API error")])
+def test_escaped_api_errors_follow_same_retry_policy(monkeypatch, exc):
+    graph = Mock()
+    graph.invoke.side_effect = exc
+    monkeypatch.setattr(worker, "build_worker_graph", lambda: graph)
+    result = worker.run_worker(payload(), {})
+    assert graph.invoke.call_count == 2
+    assert result["worker_results"][0]["error"] == f"{type(exc).__name__}: {exc}"
+
+
+@pytest.mark.parametrize("both_fail", [False, True])
+def test_parent_send_graph_survives_partial_or_simultaneous_failure(
+    fake_nodes, both_fail
+):
+    from src.graph import build_graph
+    from src.orchestration.fixtures import fixture_nodes
+    from src.state import create_initial_state
+
+    failures = {"가상 기업 1": 2}
+    if both_fail:
+        failures["가상 기업 2"] = 2
+    _, attempts = fake_nodes(failures, parallel_failures=both_fail)
+    nodes = fixture_nodes("two")
+    nodes["worker"] = worker.run_worker
+    result = build_graph(nodes=nodes).invoke(
+        create_initial_state("test", 2),
+        {
+            "max_concurrency": 2,
+            "recursion_limit": 30,
+            "configurable": {"thread_id": "parent-test"},
+        },
+    )
+    summaries = {r["company"]: r for r in result["worker_results"]}
+    assert len(summaries) == 2
+    assert summaries["가상 기업 1"]["status"] == "excluded"
+    assert summaries["가상 기업 1"]["attempts"] == 2
+    assert summaries["가상 기업 2"]["status"] == ("excluded" if both_fail else "done")
+    assert len(result["evaluation_history"]) == (0 if both_fail else 1)
+    if not both_fail:
+        assert result["evaluation_history"][0]["name"] == "가상 기업 2"
+        assert all(r["company"] == "가상 기업 2" for r in result["references"])
+    assert result["node_status"]["finalize"] == "done"
+    assert result["last_error"] is None
+    assert result["step_count"] == 6
+    assert attempts["가상 기업 1"] == 2
+
+
+def test_parent_workers_do_not_share_success_payloads(fake_nodes):
+    from src.graph import build_graph
+    from src.orchestration.fixtures import fixture_nodes
+    from src.state import create_initial_state
+
+    fake_nodes()
+    nodes = fixture_nodes("two")
+    nodes["worker"] = worker.run_worker
+    result = build_graph(nodes=nodes).invoke(
+        create_initial_state("test", 2), {"configurable": {"thread_id": "parent-test"}}
+    )
+    assert {r["name"] for r in result["evaluation_history"]} == {
+        "가상 기업 1",
+        "가상 기업 2",
+    }
+    assert len(result["references"]) == 4
+    assert all(r["status"] == "done" for r in result["worker_results"])
