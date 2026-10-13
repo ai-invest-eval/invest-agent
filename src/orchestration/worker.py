@@ -49,6 +49,26 @@ def build_worker_graph():
     return graph.compile(checkpointer=False)
 
 
+def _fresh_input(state: WorkerState) -> WorkerState:
+    """실패한 시도의 누적값 대신 기업과 탐색 입력만 복사한다."""
+    task = state["task"]
+    return copy.deepcopy(
+        {
+            "task": task,
+            "trace_id": state["trace_id"],
+            "selected_startup": task["company"],
+            "analysis_focus": state.get("analysis_focus", task["focus"]),
+            "references": state.get("references", task["discovery_refs"]),
+            "startup_profile": None,
+            "tech_analysis": "",
+            "market_analysis": "",
+            "competitor_analysis": "",
+            "investment_decision": None,
+            "evaluation_history": [],
+        }
+    )
+
+
 def _successful_payload(result, initial, company):
     records = result.get("evaluation_history") or []
     if len(records) != 1 or records[0].get("name") != company:
@@ -71,7 +91,7 @@ def run_worker(state: WorkerState, config: RunnableConfig) -> WorkerUpdate:
     task = state["task"]
     company = task["company"]["name"]
     started = time.monotonic()
-    initial = copy.deepcopy(state)
+    initial = _fresh_input(state)
     result = build_worker_graph().invoke(copy.deepcopy(initial), config=config)
     payload = _successful_payload(result, initial, company)
     return {

@@ -1,5 +1,6 @@
 """C 담당 Worker 계약·실패 처리 검증. 외부 API는 호출하지 않는다."""
 
+import copy
 from collections import Counter
 from threading import Barrier, Lock
 from unittest.mock import Mock
@@ -188,4 +189,62 @@ def test_bad_evaluation_history_is_not_success(monkeypatch, records):
     }
     monkeypatch.setattr(worker, "build_worker_graph", lambda: graph)
     with pytest.raises(ValueError, match="평가 이력 1건"):
+        worker.run_worker(payload(), {})
+
+
+def test_run_worker_resets_internal_fields_and_preserves_input(monkeypatch):
+    state = payload()
+    state.update(
+        startup_profile={"name": "stale"},
+        tech_analysis="stale",
+        market_analysis="stale",
+        competitor_analysis="stale",
+        investment_decision={"verdict": "통과"},
+        evaluation_history=[{"name": "stale"}],
+    )
+    before = copy.deepcopy(state)
+
+    def invoke(current, config):
+        assert current["startup_profile"] is None
+        assert all(
+            current[k] == ""
+            for k in ("tech_analysis", "market_analysis", "competitor_analysis")
+        )
+        assert current["investment_decision"] is None
+        assert current["evaluation_history"] == []
+        assert current["analysis_focus"] == state["analysis_focus"]
+        current["task"]["focus"].append("mutated")
+        return {**current, "evaluation_history": [{"name": "Alpha"}]}
+
+    graph = Mock(invoke=Mock(side_effect=invoke))
+    monkeypatch.setattr(worker, "build_worker_graph", lambda: graph)
+    worker.run_worker(state, {})
+    assert state == before
+
+
+def test_new_references_keep_distinct_pages_without_discovery(fake_nodes):
+    fake_nodes()
+    out = worker.run_worker(payload(), {})
+    assert len(out["references"]) == 2
+    assert {r["page"] for r in out["references"]} == {1, 2}
+    assert all(r["agent"] != "discovery" for r in out["references"])
+
+
+def test_worker_uses_task_defaults_for_optional_send_values(fake_nodes):
+    fake_nodes()
+    state = payload()
+    del state["references"]
+    del state["analysis_focus"]
+    out = worker.run_worker(state, {})
+    assert len(out["references"]) == 2
+
+
+def test_reference_prefix_must_be_preserved(monkeypatch):
+    graph = Mock()
+    graph.invoke.return_value = {
+        "evaluation_history": [{"name": "Alpha"}],
+        "references": [],
+    }
+    monkeypatch.setattr(worker, "build_worker_graph", lambda: graph)
+    with pytest.raises(ValueError, match="탐색 출처"):
         worker.run_worker(payload(), {})
