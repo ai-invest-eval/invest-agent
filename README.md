@@ -29,14 +29,14 @@
 
 ```mermaid
 flowchart TD
-    S([START]) --> O[orchestrator<br/>1번 탐색·자격검증 + 계획 수립<br/>+ 인덱스·모델 워밍업]
-    O -->|plan 비어 있음| R
-    O -->|Send × N<br/>N = len(plan)| W[worker<br/>서브그래프: 2 → 3A·3B → 4 → 5<br/>실패 시 1회 재시도 → 제외]
-    W --> R[synthesizer<br/>정렬·집계 + 보고서 초안]
-    R --> Q[quality_eval<br/>규칙 + LLM Judge · 판정만]
-    Q -->|재작성 가능 & 작성 횟수 < 상한| R
-    Q -->|그 외 모든 경우| F[finalize<br/>품질 결과 반영 · 최종 저장]
-    F --> E([END])
+    S(["START"]) --> O["orchestrator<br/>1번 탐색·자격검증 + 계획 수립<br/>+ 인덱스·모델 워밍업"]
+    O -->|"plan 비어 있음"| R
+    O -->|"Send × N<br/>N = len(plan)"| W["worker<br/>서브그래프: 2 → 3A·3B → 4 → 5<br/>실패 시 1회 재시도 → 제외"]
+    W --> R["synthesizer<br/>정렬·집계 + 보고서 초안"]
+    R --> Q["quality_eval<br/>규칙 + LLM Judge · 판정만"]
+    Q -->|"재작성 가능 · 작성 3회 미만"| R
+    Q -->|"그 외 모든 경우"| F["finalize<br/>품질 결과 반영 · 최종 저장"]
+    F --> E(["END"])
 ```
 
 | 노드 | 역할 | 코드 |
