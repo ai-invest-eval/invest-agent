@@ -1,53 +1,70 @@
-"""LangGraph state shared by the investment evaluation agents."""
+"""Parent control state and company-scoped payloads (v3.2)."""
 
 import operator
 from typing import Annotated, Required, TypedDict
+from uuid import uuid4
 
 from src.config import DEFAULT_MAX_CANDIDATES
 from src.schemas import (
     CandidateStartup,
     EvaluationRecord,
+    EvalVerdict,
     InvestmentDecision,
     Reference,
+    ReportDraft,
     StartupProfile,
+    SubTask,
+    WorkerResult,
 )
 
 
+def merge_dict(a: dict, b: dict) -> dict:
+    """Workers use distinct task IDs; serial node statuses may replace earlier values."""
+    return {**(a or {}), **(b or {})}
+
+
 class InvestmentState(TypedDict, total=False):
-    # 사용자 입력: 스타트업 탐색 키워드
+    # Input: user request and finite candidate bound.
     input_keyword: Required[str]
-    # app.py에서 설정. 1번 탐색 상한과 전체 실행 한도 계산에 함께 사용
     max_candidates: Required[int]
-
-    # 1번: 자격 검증 완료 후보 목록
+    # Working: no company-specific singleton payloads in the parallel parent.
     candidate_startups: list[CandidateStartup]
-    # 1번: 현재 평가 대상 기업
-    selected_startup: CandidateStartup | None
-
-    # 2번: 기업 프로필 및 결측 정보
-    startup_profile: StartupProfile | None
-    # 3-A번: 기술 분석 결과
-    tech_analysis: str
-    # 3-B번: 시장성 분석 결과
-    market_analysis: str
-    # 4번: 경쟁사 분석 결과
-    competitor_analysis: str
-    # 5번: 현재 기업의 점수 및 투자 판정
-    investment_decision: InvestmentDecision | None
-
-    # 5번: 기업별 평가 이력 (누적)
+    plan: list[SubTask]
     evaluation_history: Annotated[list[EvaluationRecord], operator.add]
-    # 1·2·3-A·3-B·4번: 참고 출처 (누적)
     references: Annotated[list[Reference], operator.add]
-
-    # 6번: 최종 투자 보고서 (마크다운)
+    worker_results: Annotated[list[WorkerResult], operator.add]
     final_report: str
+    report_draft: ReportDraft | None
+    report_pages: int | None
+    # Eval: replace each round; do not accumulate old feedback.
+    eval_result: EvalVerdict | None
+    eval_feedback: list[str]
+    # Loop: trace correlation, bounded counters and task completion summaries.
+    trace_id: str
+    step_count: Annotated[int, operator.add]
+    node_status: Annotated[dict[str, str], merge_dict]
+    report_attempts: int
+    # Serial nodes only. Worker errors belong to worker_results[].error.
+    last_error: str | None
+
+
+class WorkerState(TypedDict, total=False):
+    task: SubTask
+    trace_id: str
+    analysis_focus: list[str]
+    selected_startup: CandidateStartup | None
+    startup_profile: StartupProfile | None
+    tech_analysis: str
+    market_analysis: str
+    competitor_analysis: str
+    investment_decision: InvestmentDecision | None
+    evaluation_history: Annotated[list[EvaluationRecord], operator.add]
+    references: Annotated[list[Reference], operator.add]
 
 
 def create_initial_state(
     input_keyword: str, max_candidates: int = DEFAULT_MAX_CANDIDATES
 ) -> InvestmentState:
-    """모든 실행에서 동일한 초기값을 사용한다."""
     if not input_keyword.strip():
         raise ValueError("검색 키워드를 입력하세요.")
     if max_candidates < 1:
@@ -56,13 +73,18 @@ def create_initial_state(
         "input_keyword": input_keyword.strip(),
         "max_candidates": max_candidates,
         "candidate_startups": [],
-        "selected_startup": None,
-        "startup_profile": None,
-        "tech_analysis": "",
-        "market_analysis": "",
-        "competitor_analysis": "",
-        "investment_decision": None,
+        "plan": [],
         "evaluation_history": [],
         "references": [],
+        "worker_results": [],
         "final_report": "",
+        "report_draft": None,
+        "report_pages": None,
+        "eval_result": None,
+        "eval_feedback": [],
+        "trace_id": uuid4().hex,
+        "step_count": 0,
+        "node_status": {},
+        "report_attempts": 0,
+        "last_error": None,
     }
