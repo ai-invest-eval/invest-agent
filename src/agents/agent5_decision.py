@@ -12,11 +12,10 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from src.config import KST
-
 from src.agents import agent5_config as cfg
 from src.agents import agent5_scoring as scoring
 from src.agents.agent5_rubric import PROMPT, rubric_text
+from src.config import KST
 from src.schemas import EvaluationRecord, InvestmentDecision, InvestmentDecisionUpdate
 from src.state import InvestmentState
 
@@ -115,7 +114,7 @@ def _get_llm():
     from src.config import LLM_MODEL, LLM_TEMPERATURE
 
     return ChatOpenAI(
-        model=LLM_MODEL, temperature=LLM_TEMPERATURE
+        model=LLM_MODEL, temperature=LLM_TEMPERATURE, timeout=60, max_retries=1
     ).with_structured_output(JudgeResult)
 
 
