@@ -240,7 +240,7 @@ Judge가 보고서 문장과 근거를 직접 대조할 수 있도록, **보고�
 │   ├── schemas.py                # SubTask · WorkerResult · EvalVerdict 등
 │   └── config.py                 # 상한·상수
 ├── data/{technology,market}/     # 원본 PDF 15개
-├── docs/                         # 투자 기준·데이터 계약·실행 가이드
+├── docs/                         # 투자 기준·데이터 계약·실행 가이드, images/ 트레이스 캡처
 ├── tests/                        # 노드·라우팅·품질·Graph 테스트
 └── pyproject.toml / uv.lock / .env.example
 ```
