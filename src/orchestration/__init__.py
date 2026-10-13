@@ -1,1 +1,1 @@
-"""Orchestrator-Workers 조정 계층."""
+"""Dynamic planning, isolated workers, quality evaluation and finalization."""
