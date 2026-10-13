@@ -1,82 +1,55 @@
-"""전체 투자 평가 그래프. 노드 계약과 후보 반복을 연결한다."""
+"""A-owned graph assembly. Company payloads stay in dynamic Send workers."""
 
-import sys
+from collections.abc import Mapping
 
+from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import END, START, StateGraph
 
-from src.agents.agent1_search import select_next_candidate
+from src.orchestration.orchestrator import dispatch
+from src.orchestration.routing import route_after_eval
 from src.state import InvestmentState
 
-
-def route_after_search(state: InvestmentState) -> str:
-    """후보가 없으면 2~5번을 건너뛰고 빈 결과 보고서를 작성한다."""
-    return "company_profile" if state.get("selected_startup") else "report_writer"
+NODE_NAMES = ("orchestrator", "worker", "synthesizer", "quality_eval", "finalize")
 
 
-def route_after_decision(state: InvestmentState) -> str:
-    """통과/보류에 관계없이 미평가 후보를 계속 처리한다."""
-    candidates = state.get("candidate_startups") or []
-    history = state.get("evaluation_history") or []
-    selected = state.get("selected_startup")
-    # 5번이 현재 기업을 기록하지 않으면 같은 기업을 반복하게 된다.
-    # 잘못된 반환을 무한 반복 대신 계약 오류로 바로 알린다.
-    if selected and select_next_candidate([selected], history) is not None:
-        raise ValueError("Agent 5가 현재 기업의 평가 이력을 반환하지 않았습니다.")
-    return (
-        "startup_search"
-        if select_next_candidate(candidates, history)
-        else "report_writer"
-    )
+def build_graph(
+    *, nodes: Mapping | None = None, fixture: str | None = None, checkpointer=None
+):
+    """Injected nodes use exactly the same graph as live mode; fixtures are explicit."""
+    if nodes is not None and fixture is not None:
+        raise ValueError("nodes와 fixture를 동시에 지정할 수 없습니다.")
+    if fixture:
+        from src.orchestration.fixtures import fixture_nodes
 
+        nodes = fixture_nodes(fixture)
+    elif nodes is None:
+        from src.agents.agent6_report import report_writer
+        from src.orchestration.finalize import finalize
+        from src.orchestration.orchestrator import orchestrator
+        from src.orchestration.quality_eval import quality_eval
+        from src.orchestration.worker import run_worker
 
-def build_graph(prepare_indexes=None):
-    """1 → 2 → (3a·3b 병렬) → 4 → 5 → 다음 후보 또는 6."""
-    # 개별 실행에서는 선택한 에이전트만 import되도록 전체 노드는 여기서 로딩한다.
-    from src.agents.agent1_search import startup_search
-    from src.agents.agent2_profile import company_profile
-    from src.agents.agent3a_tech import tech_analysis
-    from src.agents.agent3b_market import market_analysis
-    from src.agents.agent4_competitor import competitor_analysis
-    from src.agents.agent5_decision import investment_decision
-    from src.agents.agent6_report import report_writer
-
-    indexes_prepared = False
-
-    def with_progress(name, node):
-        def run(state):
-            nonlocal indexes_prepared
-            if (
-                name == "company_profile"
-                and prepare_indexes
-                and not indexes_prepared
-                and state.get("selected_startup")
-            ):
-                prepare_indexes()
-                indexes_prepared = True
-            company = (state.get("selected_startup") or {}).get("name", "")
-            print(f"[pipeline] {name} {company}".rstrip(), file=sys.stderr, flush=True)
-            return node(state)
-
-        return run
-
+        nodes = {
+            "orchestrator": orchestrator,
+            "worker": run_worker,
+            "synthesizer": report_writer,
+            "quality_eval": quality_eval,
+            "finalize": finalize,
+        }
+    if set(nodes) != set(NODE_NAMES):
+        raise ValueError(f"Expected exactly these node names: {NODE_NAMES}")
     graph = StateGraph(InvestmentState)
-    for name, node in (
-        ("startup_search", startup_search),
-        ("company_profile", company_profile),
-        ("tech_analysis", tech_analysis),
-        ("market_analysis", market_analysis),
-        ("competitor_analysis", competitor_analysis),
-        ("investment_decision", investment_decision),
-        ("report_writer", report_writer),
-    ):
-        graph.add_node(name, with_progress(name, node))
-    graph.add_edge(START, "startup_search")
-    graph.add_conditional_edges("startup_search", route_after_search)
-    graph.add_edge("company_profile", "tech_analysis")
-    graph.add_edge("company_profile", "market_analysis")
-    # 리스트 시작점은 두 병렬 노드가 모두 끝난 뒤 4번을 한 번만 실행한다.
-    graph.add_edge(["tech_analysis", "market_analysis"], "competitor_analysis")
-    graph.add_edge("competitor_analysis", "investment_decision")
-    graph.add_conditional_edges("investment_decision", route_after_decision)
-    graph.add_edge("report_writer", END)
-    return graph.compile()
+    for name in NODE_NAMES:
+        graph.add_node(name, nodes[name])
+    graph.add_edge(START, "orchestrator")
+    graph.add_conditional_edges("orchestrator", dispatch, ["worker", "synthesizer"])
+    # Dynamic Send tasks in the same superstep join before this successor runs once.
+    graph.add_edge("worker", "synthesizer")
+    graph.add_edge("synthesizer", "quality_eval")
+    graph.add_conditional_edges(
+        "quality_eval", route_after_eval, ["synthesizer", "finalize"]
+    )
+    graph.add_edge("finalize", END)
+    return graph.compile(
+        checkpointer=InMemorySaver() if checkpointer is None else checkpointer
+    )
