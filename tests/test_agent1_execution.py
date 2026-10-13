@@ -10,7 +10,14 @@ from langgraph.graph import END, START, StateGraph
 
 import app
 from src.agents.agent1_search import Agent1SearchError, startup_search
+from src.schemas import CandidateStartup
 from src.state import InvestmentState, create_initial_state
+
+
+class StandaloneSearchState(InvestmentState, total=False):
+    """Legacy Agent 1 standalone contract; singleton does not enter parent graph."""
+
+    selected_startup: CandidateStartup | None
 
 
 class Agent1ExecutionTests(unittest.TestCase):
@@ -82,7 +89,7 @@ class Agent1ExecutionTests(unittest.TestCase):
                 "evaluation_history": [{"name": current["selected_startup"]["name"]}]
             }
 
-        graph = StateGraph(InvestmentState)
+        graph = StateGraph(StandaloneSearchState)
         graph.add_node("search", startup_search)
         graph.add_node("evaluated", evaluated)
         graph.add_edge(START, "search")

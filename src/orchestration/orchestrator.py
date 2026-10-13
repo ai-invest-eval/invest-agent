@@ -6,12 +6,15 @@
 import logging
 import os
 from collections.abc import Callable
-from typing import Annotated, Any
+from typing import Annotated
 
 from langgraph.types import Send
 from pydantic import BaseModel, Field, StringConstraints
 
 from src.agents.agent1_search import normalize_name, startup_search
+from src.config import MAX_WORKER_ATTEMPTS
+from src.schemas import OrchestratorUpdate, SubTask
+from src.state import InvestmentState
 from src.tools.structured_llm import GPTStructuredGenerator, StructuredGenerator
 
 PLANNER_PROMPT = """당신은 AI 신약개발 스타트업의 기술·시장 문헌 검색 계획 담당자다.
@@ -63,17 +66,17 @@ def log_decision(trace_id, node, decision, reason, **extra):
 
 
 def orchestrator(
-    state: dict[str, Any],
+    state: InvestmentState,
     *,
     discover: Callable | None = None,
     generator: StructuredGenerator | None = None,
     prepare: Callable[[], None] | None = None,
     log: Callable | None = None,
-) -> dict[str, Any]:
+) -> OrchestratorUpdate:
     """A의 trace_id를 받아 후보별 SubTask 계약의 dict와 새 출처만 반환한다.
 
     discover/generator/prepare/log는 API 없는 테스트를 위한 주입 지점이다.
-    공용 schemas.py는 A 소유이므로 B는 계획의 런타임 계약을 여기서 검증한다.
+    A의 공용 State/Schema와 상수를 사용하고 Planner 출력은 런타임 검증한다.
     """
     trace_id = state.get("trace_id")
     if not isinstance(trace_id, str) or not trace_id.strip():
@@ -85,7 +88,7 @@ def orchestrator(
     identities = [normalize_name(name) for name in names]
     if any(not name for name in identities) or len(set(identities)) != len(names):
         raise ValueError("평가 후보의 이름은 비어 있거나 중복될 수 없습니다.")
-    plans = []
+    plans: list[SubTask] = []
     for index, candidate in enumerate(candidates):
         discovery_refs = [
             ref
@@ -100,7 +103,7 @@ def orchestrator(
                 "company": candidate,
                 "focus": [],
                 "discovery_refs": discovery_refs,
-                "max_attempts": 2,
+                "max_attempts": MAX_WORKER_ATTEMPTS,
             }
         )
     error = None
@@ -161,7 +164,7 @@ def orchestrator(
             for t in plans
         ],
     )
-    result = {
+    result: OrchestratorUpdate = {
         "candidate_startups": candidates,
         "plan": plans,
         "references": refs,
@@ -173,9 +176,10 @@ def orchestrator(
     return result
 
 
-def dispatch(state: dict[str, Any]) -> list[Send] | str:
+def dispatch(state: InvestmentState) -> list[Send] | str:
     """계획이 비면 보고서로, 아니면 계획당 한 개의 격리된 Worker로 보낸다."""
-    if not state["plan"]:
+    tasks = state.get("plan") or []
+    if not tasks:
         return "synthesizer"
     return [
         Send(
@@ -188,5 +192,5 @@ def dispatch(state: dict[str, Any]) -> list[Send] | str:
                 "references": task["discovery_refs"],
             },
         )
-        for task in state["plan"]
+        for task in tasks
     ]

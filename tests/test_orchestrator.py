@@ -111,3 +111,83 @@ def test_prepare_failure_is_not_swallowed():
             },
             prepare=broken,
         )
+
+
+@pytest.mark.parametrize(
+    "fixture,count",
+    [
+        ("empty", 0),
+        ("two", 2),
+        ("three", 3),
+        ("partial_fail", 2),
+        ("all_fail", 2),
+        ("quality_loop", 2),
+    ],
+)
+@pytest.mark.parametrize("planner_fails", [False, True])
+def test_real_b_node_with_a_graph_and_worker_state(fixture, count, planner_fails):
+    from src.graph import build_graph
+    from src.orchestration.fixtures import fixture_nodes, sample_candidates
+    from src.state import create_initial_state
+
+    candidates = sample_candidates(fixture)
+    refs = [
+        {
+            "company": c["name"],
+            "agent": "discovery",
+            "title": "탐색 출처",
+            "source": "web",
+            "issuer": "fixture",
+            "year": 2026,
+            "doc_type": "web",
+        }
+        for c in candidates
+    ]
+    planner = Planner(
+        []
+        if planner_fails
+        else [
+            {"company": c["name"], "focus": ["임상 검증"], "reason": "출처 제목"}
+            for c in candidates
+        ]
+    )
+    events = []
+    nodes = fixture_nodes(fixture)
+    child_worker = nodes["worker"]
+
+    def real_plan(state):
+        return orchestrator(
+            state,
+            discover=lambda _: {"candidate_startups": candidates, "references": refs},
+            generator=planner,
+            prepare=lambda: events.append("prepare"),
+            log=lambda *a, **kw: None,
+        )
+
+    def observe_worker(state, config):
+        assert events == ["prepare"]
+        assert state["analysis_focus"] == ([] if planner_fails else ["임상 검증"])
+        assert len(state["references"]) == 1
+        assert state["references"][0]["company"] == state["selected_startup"]["name"]
+        return child_worker(state, config)
+
+    nodes.update(orchestrator=real_plan, worker=observe_worker)
+    state = create_initial_state("test", 3)
+    result = build_graph(nodes=nodes).invoke(
+        state,
+        {
+            "configurable": {"thread_id": state["trace_id"]},
+            "max_concurrency": 3,
+            "recursion_limit": 24,
+        },
+    )
+    assert len(result["plan"]) == count
+    assert len(result["worker_results"]) == count
+    assert result["node_status"]["finalize"] == "done"
+    assert result["report_attempts"] == (2 if fixture == "quality_loop" else 1)
+    assert len([r for r in result["references"] if r["agent"] == "discovery"]) == count
+    assert events == (["prepare"] if count else [])
+
+
+def test_dispatch_without_plan_is_safe():
+    assert dispatch({"trace_id": "run"}) == "synthesizer"
