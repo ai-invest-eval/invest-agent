@@ -345,9 +345,15 @@ def judge_targets(state: dict) -> list[tuple[str, str]]:
             targets.append((f"SUMMARY 투자 이유 {i}", text))
         if payload.get("key_risk"):
             targets.append(("SUMMARY 핵심 리스크", payload["key_risk"]))
-        for key in ("s2_1", "s2_2", "s2_3", "s2_4", "s2_5", "s2_6"):
+        # 2장 상세 소항목(s2_1 ~ s2_7, 2.7 = 사업 리스크와 한계점)은 이름 규칙으로 모두 포함한다.
+        # 고정 목록을 쓰면 agent6에 소항목이 추가될 때 평가에서 빠진다(편향 통제에 중요한 2.7 누락 사례).
+        section_keys = sorted(
+            (k for k in payload if re.fullmatch(r"s2_\d+", k)),
+            key=lambda k: int(k.split("_")[1]),
+        )
+        for key in section_keys:
             if payload.get(key):
-                targets.append((f"{key.replace('s', '').replace('_', '.')} 상세 분석", payload[key]))
+                targets.append((f"{key[1:].replace('_', '.')} 상세 분석", payload[key]))
     elif kind == "no_pass":
         for i, text in enumerate(payload.get("summary_reasons") or [], 1):
             targets.append((f"SUMMARY 보류 사유 {i}", text))
