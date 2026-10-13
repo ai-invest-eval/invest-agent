@@ -210,8 +210,32 @@ def _task_order(state: dict) -> dict[str, int]:
     return order
 
 
+def focus_company(records: list[dict]) -> str | None:
+    """보고서가 상세히 다루는 기업: 통과 기업이 있으면 추천(1위 통과) 기업, 없으면 최고점 후보.
+
+    agent6와 같은 정렬(report_format.rank_records)을 써서 보고서와 같은 기업을 고른다.
+    """
+    if not records:
+        return None
+    try:
+        from src.tools.report_format import is_pass, rank_records
+
+        ranked = [r for _, _, r in rank_records(records)]
+        passed = [r for r in ranked if is_pass(r)]
+        return (passed or ranked)[0].get("name")
+    except Exception:  # noqa: BLE001 — 정렬 모듈 문제 시 총점 최고 기업으로 대체
+        best = max(records, key=lambda r: ((r.get("verdict") == "통과"), r.get("total") or 0))
+        return best.get("name")
+
+
 def build_evidence_bundle(state: dict, chunks: dict[str, str] | None = None) -> tuple[list[dict], str]:
-    """보고서에 나오는 모든 기업의 근거 묶음과 source_verification을 돌려준다.
+    """보고서에 실제로 나오는 범위에 맞춘 근거 묶음과 source_verification을 돌려준다.
+
+    - 모든 기업: 코드가 계산한 판정·총점·결측 비중·보류 사유·미확인 관문·정보 부족 질문(rule_result)
+      → 순위표·판정 사유·보류 사유 분포에 나오는 내용
+    - 상세 기업(추천 기업, 없으면 최고점 후보)만: 질문별 채점 근거 + 원문 근거 인용
+      → 보고서 2장 상세 분석·미달 원인에 나오는 내용
+    보고서에 나오지 않는 다른 기업의 질문별 근거까지 넣으면 Judge가 "리스크·근거 누락"으로 오판한다.
 
     chunks: 테스트용 원문 청크 주입. None이면 RAG 색인에서 읽는다.
     """
@@ -221,11 +245,25 @@ def build_evidence_bundle(state: dict, chunks: dict[str, str] | None = None) -> 
         enumerate(state.get("evaluation_history") or []),
         key=lambda pair: (order.get(pair[1].get("name"), 10**6), pair[0]),
     )]
+    focus = focus_company(records)
     bundle: list[dict] = []
     for fallback_index, r in enumerate(records):
         company = r.get("name")
         idx = order.get(company, fallback_index)
         base = {"company": company, "task_index": idx}
+        rule_text = f"판정 {r.get('verdict')} · 총점 {r.get('total', 0):.1f} · 결측 비중 {r.get('missing_weight', 0):.0%}"
+        if r.get("hold_reason"):
+            rule_text += f" · 보류 사유 {r['hold_reason']}"
+        if r.get("unconfirmed_gates"):
+            rule_text += f" · 미확인 관문 {', '.join(r['unconfirmed_gates'])}"
+        missing = sorted(q for q, ev in (r.get("question_evidence") or {}).items() if ev.get("missing"))
+        if missing:
+            rule_text += f" · 정보 부족 질문 {', '.join(missing)}"
+        bundle.append({**base, "claim_area": "hold_reason" if r.get("hold_reason") else "summary",
+                       "question": None, "evidence_kind": "rule_result", "text": _cut(rule_text), "source_ids": [],
+                       "source_locator": None, "excerpt_verified": False})
+        if company != focus:
+            continue
         for q, ev in sorted((r.get("question_evidence") or {}).items()):
             if ev.get("missing"):
                 continue
@@ -233,14 +271,6 @@ def build_evidence_bundle(state: dict, chunks: dict[str, str] | None = None) -> 
                            "text": _cut(ev.get("rationale")),
                            "source_ids": [_ref_label(x) for x in ev.get("references") or []],
                            "source_locator": None, "excerpt_verified": False})
-        rule_text = f"판정 {r.get('verdict')} · 총점 {r.get('total', 0):.1f} · 결측 비중 {r.get('missing_weight', 0):.0%}"
-        if r.get("hold_reason"):
-            rule_text += f" · 보류 사유 {r['hold_reason']}"
-        if r.get("unconfirmed_gates"):
-            rule_text += f" · 미확인 관문 {', '.join(r['unconfirmed_gates'])}"
-        bundle.append({**base, "claim_area": "hold_reason" if r.get("hold_reason") else "summary",
-                       "question": None, "evidence_kind": "rule_result", "text": _cut(rule_text), "source_ids": [],
-                       "source_locator": None, "excerpt_verified": False})
         for field in ("tech_analysis", "market_analysis"):
             for ex in parse_excerpts(r.get(field) or ""):
                 verified = all(verify_excerpt(ex["text"], sid, chunks) for sid in ex["source_ids"])
@@ -263,25 +293,75 @@ def build_evidence_bundle(state: dict, chunks: dict[str, str] | None = None) -> 
 
 # ─────────────────────────────────────────── 2안: LLM Judge
 
-QUALITY_JUDGE_PROMPT = """[역할] 투자 심사 보고서의 품질 검토자. 투자 판단이 옳은지가 아니라, 보고서가 근거에 충실하고 균형 잡혔는지를 평가한다.
+QUALITY_JUDGE_PROMPT = """[역할] 투자 심사 보고서의 품질 검토자. 투자 판단이 옳은지가 아니라, LLM이 작성한 문장이 근거에 충실하고 균형 잡혔는지를 평가한다.
 
 [입력]
-- 보고서 Markdown
-- evidence_bundle: 기업별 근거 {company, claim_area, question, evidence_kind, text, source_ids}
+- "평가 대상" 블록: LLM이 작성한 문장 목록. 각 줄 앞의 [필드명]이 위치다. **이 문장들만 채점한다.**
+- "참고: 보고서 전문" 블록: 순위표·판정 사유·보류 사유 분포·정보 부족 목록·REFERENCE 등은 코드가 데이터로 조립한 부분이다.
+  문맥 확인용으로만 읽고, 이 부분의 표현·구성·상세함은 채점하지 않는다.
+- evidence_bundle: 보고서에 나오는 범위의 근거 {company, claim_area, question, evidence_kind, text, source_ids}
   · source_excerpt: 원문 대조를 통과한 인용문 → 주장과 원문 연결을 엄격히 평가
-  · analysis_rationale: 앞 단계 분석 근거 → 보고서 서술과의 일관성만 평가
-  · rule_result: 코드가 계산한 점수·판정 → 보고서 숫자·판정과 일치하는지만 확인
+  · analysis_rationale: 앞 단계 분석 근거 → 서술과의 일관성만 평가
+  · rule_result: 코드가 계산한 판정·총점·결측 비중·보류 사유·미확인 관문·정보 부족 질문 → 숫자·판정 일치만 확인
 
-[평가 항목] 각 1~5점, 3점 미만이면 issues에 고칠 위치와 이유를 적는다.
-1. groundedness: 보고서의 주요 주장을 evidence_bundle과 대조. 근거에 없는 수치·사실, 근거와 다른 해석, 근거보다 과장된 서술이 있으면 감점.
-2. neutrality: 점수·규칙으로 정해진 순위·판정 외에, 근거 없는 우열 판정, 과장·홍보성 표현, 단정적 수익 전망이 있으면 감점.
-3. bias: 유리한 근거만 제시하고 리스크·결측을 숨기거나, 근거를 한쪽 출처에만 기대어 서술하면 감점.
+[평가 항목] 각 1~5점.
+1. groundedness: 평가 대상 문장에 근거에 없는 수치·사실, 근거와 다른 해석, 근거보다 과장되거나 추측성인 서술이 있는가.
+2. neutrality: 평가 대상 문장에 근거 없는 우열 판정, 과장·홍보성 표현, 단정적 수익 전망이 있는가.
+3. bias: 평가 대상 문장이 근거에 있는 리스크·결측·보류 사유를 반대로 말하거나 축소하는가.
 
-[규칙]
-- 보고서와 evidence_bundle에 없는 정보를 상상해 평가하지 않는다.
-- 순위표와 통과/보류 판정은 코드 규칙의 결과이므로 그 자체로 중립성 감점 대상이 아니다.
+[감점 범위 — 아래에 해당하지 않으면 감점하지 않는다]
+- 문장이 짧다, 모호하다, 설명·구체성이 부족하다, 더 자세히 쓰라는 이유로는 감점하지 않는다.
+- 코드가 조립한 부분(표·목록·판정 사유 등)은 감점하지 않는다. 그 부분에 이미 있는 내용을 평가 대상 문장이 반복하지 않아도 누락이 아니다.
+- 근거 자료에 없는 내용을 추가하라는 지적은 하지 않는다.
+- 순위·통과/보류 판정은 코드 규칙의 결과이므로 그 자체로 중립성 감점 대상이 아니다.
 - "정보 부족"이라고 명시한 부분은 결측을 숨기지 않은 것으로 보고 감점하지 않는다.
-- issues는 "섹션명: 문제 → 수정 방향" 형식, 최대 6개. 문장 재작성으로 고칠 수 있는 문제만 적는다."""
+
+[점수 기준]
+- 5: 위반 없음
+- 4: 사소한 표현 문제 1건
+- 3: 고치는 편이 좋지만 결론에 영향 없는 위반 1~2건
+- 2: 결론·판정 설명에 영향을 주는 위반
+- 1: 근거와 반대되는 주장
+- 위반 문장을 구체적으로 찾지 못하면 4점 이상을 준다.
+
+[issues 작성]
+- 3점 미만 항목이 있을 때만 쓴다. 최대 6개.
+- 형식: "[필드명] 위반 문장 그대로 인용 → 근거 묶음의 어느 항목과 다른지 → 수정 방향(근거에 맞게 고치거나 삭제)".
+- 평가 대상 필드가 아닌 곳은 issues에 쓰지 않는다."""
+
+
+def judge_targets(state: dict) -> list[tuple[str, str]]:
+    """보고서에서 LLM이 쓴 문장만 (필드명, 문장)으로 뽑는다. 나머지는 코드가 조립한 부분이다.
+
+    report_draft.payload 구조(agent6): pass → DetailDraft, no_pass → NoPassDraft, empty → {}.
+    """
+    draft = state.get("report_draft") or {}
+    payload = draft.get("payload") or {}
+    kind = draft.get("kind")
+    targets: list[tuple[str, str]] = []
+    if kind == "pass":
+        for i, reason in enumerate(payload.get("reasons") or [], 1):
+            text = reason.get("text") if isinstance(reason, dict) else str(reason)
+            targets.append((f"SUMMARY 투자 이유 {i}", text))
+        if payload.get("key_risk"):
+            targets.append(("SUMMARY 핵심 리스크", payload["key_risk"]))
+        for key in ("s2_1", "s2_2", "s2_3", "s2_4", "s2_5", "s2_6"):
+            if payload.get(key):
+                targets.append((f"{key.replace('s', '').replace('_', '.')} 상세 분석", payload[key]))
+    elif kind == "no_pass":
+        for i, text in enumerate(payload.get("summary_reasons") or [], 1):
+            targets.append((f"SUMMARY 보류 사유 {i}", text))
+        if payload.get("top_gap"):
+            targets.append(("2.2 최고점 후보 미달 원인", payload["top_gap"]))
+        if payload.get("recheck"):
+            targets.append(("2.3 재검토 조건", payload["recheck"]))
+    return [(name, str(text)) for name, text in targets if str(text or "").strip()]
+
+
+def judge_view(md: str, targets: list[tuple[str, str]]) -> str:
+    """Judge에 넘길 본문: 평가 대상(LLM 문장) + 참고용 보고서 전문."""
+    lines = "\n".join(f"- [{name}] {text}" for name, text in targets)
+    return f"## 평가 대상 (LLM 작성 문장 — 이것만 채점)\n{lines}\n\n## 참고: 보고서 전문 (코드 조립 부분 포함, 채점 대상 아님)\n{md}"
 
 
 class JudgeOutput(BaseModel):
@@ -302,7 +382,7 @@ def llm_judge(md: str, bundle: list[dict]) -> JudgeOutput | None:
         from langchain_openai import ChatOpenAI
 
         llm = ChatOpenAI(model=LLM_MODEL, temperature=LLM_TEMPERATURE, timeout=60, max_retries=1)
-        payload = json.dumps({"report_markdown": md, "evidence_bundle": bundle}, ensure_ascii=False)
+        payload = json.dumps({"report": md, "evidence_bundle": bundle}, ensure_ascii=False)
         return llm.with_structured_output(JudgeOutput).invoke(
             [("system", QUALITY_JUDGE_PROMPT), ("human", payload)]
         )
@@ -320,7 +400,14 @@ def evaluate(state: dict, judge_fn: JudgeFn | None = None,
     checks, fixable, structural = rule_checks(md, state.get("references"), pages)
     bundle, verification = build_evidence_bundle(state, chunks)
 
-    judge = (judge_fn or llm_judge)(md, bundle)
+    targets = judge_targets(state)
+    if state.get("report_draft") and not targets:
+        # LLM이 쓴 문장이 없는 보고서(후보 0곳 등): Judge가 채점할 대상이 없으므로 호출하지 않고 위반 없음으로 본다.
+        judge = JudgeOutput(groundedness=5, neutrality=5, bias=5, issues=[])
+    else:
+        # report_draft가 없으면(구버전 synthesizer·단독 테스트) 보고서 전체를 평가 대상으로 둔다.
+        view = judge_view(md, targets) if targets else md
+        judge = (judge_fn or llm_judge)(view, bundle)
     judge_status = "completed" if judge is not None else "unavailable"
     scores = None
     if judge is not None:
