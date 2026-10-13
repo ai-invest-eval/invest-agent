@@ -115,6 +115,28 @@ def test_retry_once_then_missing(state):
     assert result["references"] == []
 
 
+@pytest.mark.parametrize("agent", ["tech", "market"])
+def test_orchestrator_focus_reaches_search_plan_and_retrieval(state, agent):
+    state["analysis_focus"] = ["항암 표적 검증", "희귀질환 수요"]
+    ask = FakeAsk()
+    queries = []
+    RagAnalysisAgent(agent, lambda q, **kw: queries.append(q) or [], ask)(state)
+    payload = next(payload for schema, payload in ask.calls if schema is SearchPlan)
+    assert payload["analysis_focus"] == state["analysis_focus"]
+    assert any(all(hint in q for hint in state["analysis_focus"]) for q in queries)
+
+
+def test_empty_focus_preserves_existing_queries_and_payload(state):
+    def run(extra):
+        ask, queries = FakeAsk(), []
+        result = RagAnalysisAgent("tech", lambda q, **kw: queries.append(q) or [], ask)(
+            {**state, **extra}
+        )
+        return queries, ask.calls, result
+
+    assert run({}) == run({"analysis_focus": []})
+
+
 def test_wrong_source_quote_rejected(state):
     claims = [
         Claim(
