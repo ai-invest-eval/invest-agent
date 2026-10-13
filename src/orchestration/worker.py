@@ -5,6 +5,7 @@
 """
 
 import copy
+import os
 import sys
 import time
 
@@ -96,6 +97,8 @@ def run_worker(state: WorkerState, config: RunnableConfig) -> WorkerUpdate:
 
     for attempt in range(1, task["max_attempts"] + 1):
         try:
+            if os.getenv("FORCE_FAIL_COMPANY", "") == company:
+                raise RuntimeError("forced failure for demo")
             initial = _fresh_input(state)
             # 검증용 입력을 따로 보존해 호출 중 변경도 시도 간에 전달하지 않는다.
             invoke_input = copy.deepcopy(initial)

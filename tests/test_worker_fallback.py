@@ -376,3 +376,45 @@ def test_parent_workers_do_not_share_success_payloads(fake_nodes):
     }
     assert len(result["references"]) == 4
     assert all(r["status"] == "done" for r in result["worker_results"])
+
+
+def test_forced_failure_retries_without_invoking_subgraph(monkeypatch):
+    builder = Mock()
+    monkeypatch.setattr(worker, "build_worker_graph", builder)
+    monkeypatch.setenv("FORCE_FAIL_COMPANY", "Alpha")
+    result = worker.run_worker(payload(), {})
+    builder.assert_not_called()
+    assert result["worker_results"][0]["status"] == "excluded"
+    assert result["worker_results"][0]["attempts"] == 2
+    assert (
+        result["worker_results"][0]["error"] == "RuntimeError: forced failure for demo"
+    )
+
+
+@pytest.mark.parametrize("forced", ["", "Beta", " Alpha "])
+def test_forced_failure_requires_exact_company_match(monkeypatch, fake_nodes, forced):
+    _, attempts = fake_nodes()
+    monkeypatch.setenv("FORCE_FAIL_COMPANY", forced)
+    result = worker.run_worker(payload(), {})
+    assert result["worker_results"][0]["status"] == "done"
+    assert attempts["Alpha"] == 1
+
+
+def test_forced_failure_excludes_only_selected_company_in_parent(
+    monkeypatch, fake_nodes
+):
+    from src.graph import build_graph
+    from src.orchestration.fixtures import fixture_nodes
+    from src.state import create_initial_state
+
+    fake_nodes()
+    monkeypatch.setenv("FORCE_FAIL_COMPANY", "가상 기업 1")
+    nodes = fixture_nodes("two")
+    nodes["worker"] = worker.run_worker
+    result = build_graph(nodes=nodes).invoke(
+        create_initial_state("test", 2), {"configurable": {"thread_id": "forced-test"}}
+    )
+    summaries = {r["company"]: r for r in result["worker_results"]}
+    assert summaries["가상 기업 1"]["status"] == "excluded"
+    assert summaries["가상 기업 2"]["status"] == "done"
+    assert "평가 제외" in result["final_report"]
