@@ -418,3 +418,90 @@ def test_forced_failure_excludes_only_selected_company_in_parent(
     assert summaries["가상 기업 1"]["status"] == "excluded"
     assert summaries["가상 기업 2"]["status"] == "done"
     assert "평가 제외" in result["final_report"]
+
+
+@pytest.fixture
+def decisions(monkeypatch):
+    logger = Mock()
+    monkeypatch.setattr(worker, "log_decision", logger)
+    return logger
+
+
+def test_retry_and_success_logs_include_total_duration(
+    monkeypatch, fake_nodes, decisions
+):
+    fake_nodes({"Alpha": 1})
+    ticks = iter([10.0, 11.0, 13.0])
+    monkeypatch.setattr(worker.time, "monotonic", lambda: next(ticks))
+    config = {"metadata": {"trace_id": "trace"}}
+    result = worker.run_worker(payload(), config)
+    assert result["worker_results"][0]["duration_ms"] == 3000
+    first, last = decisions.call_args_list
+    assert first.args == ("trace", "worker", "retry", "TimeoutError: profile timeout")
+    assert first.kwargs == {
+        "task_id": "trace:0",
+        "company": "Alpha",
+        "attempts": 1,
+        "duration_ms": 1000,
+    }
+    assert last.args == ("trace", "worker", "done", "평가 완료")
+    assert last.kwargs == {
+        "task_id": "trace:0",
+        "company": "Alpha",
+        "attempts": 2,
+        "duration_ms": 3000,
+    }
+
+
+def test_final_failure_logs_exclusion(monkeypatch, decisions):
+    monkeypatch.setenv("FORCE_FAIL_COMPANY", "Alpha")
+    ticks = iter([10.0, 11.0, 12.0])
+    monkeypatch.setattr(worker.time, "monotonic", lambda: next(ticks))
+    result = worker.run_worker(payload(), {})
+    assert [c.args[2] for c in decisions.call_args_list] == ["retry", "excluded"]
+    assert decisions.call_args_list[-1].args[3] == result["worker_results"][0]["error"]
+    assert decisions.call_args_list[-1].kwargs["duration_ms"] == 2000
+
+
+def test_worker_child_callbacks_remain_nested_in_parent(fake_nodes):
+    from langchain_core.callbacks import BaseCallbackHandler
+
+    from src.graph import build_graph
+    from src.orchestration.fixtures import fixture_nodes
+    from src.state import create_initial_state
+
+    starts = []
+
+    class Recorder(BaseCallbackHandler):
+        def on_chain_start(
+            self, serialized, inputs, *, run_id, parent_run_id=None, **kwargs
+        ):
+            starts.append((kwargs.get("name"), run_id, parent_run_id))
+
+    fake_nodes()
+    nodes = fixture_nodes("two")
+    nodes["worker"] = worker.run_worker
+    build_graph(nodes=nodes).invoke(
+        create_initial_state("test", 2),
+        {
+            "configurable": {"thread_id": "callback-test"},
+            "callbacks": [Recorder()],
+            "metadata": {"trace_id": "trace"},
+            "tags": ["worker-test"],
+        },
+    )
+    workers = {run_id for name, run_id, _ in starts if name == "worker"}
+    children = {
+        run_id
+        for name, run_id, parent in starts
+        if name == "LangGraph" and parent in workers
+    }
+    assert len(workers) == len(children) == 2
+    for name in (
+        "company_profile",
+        "tech_analysis",
+        "market_analysis",
+        "competitor_analysis",
+        "investment_decision",
+    ):
+        assert sum(n == name and parent in children for n, _, parent in starts) == 2
