@@ -87,26 +87,49 @@ def _successful_payload(result, initial, company):
 
 
 def run_worker(state: WorkerState, config: RunnableConfig) -> WorkerUpdate:
-    """현재 기업의 결과만 reducer가 있는 부모 키로 반환한다."""
+    """실패는 task.max_attempts까지 재시도하고 최종 실패는 excluded로 반환."""
     task = state["task"]
+    task_id = task["task_id"]
     company = task["company"]["name"]
     started = time.monotonic()
-    initial = _fresh_input(state)
-    result = build_worker_graph().invoke(copy.deepcopy(initial), config=config)
-    payload = _successful_payload(result, initial, company)
-    return {
-        **payload,
-        "worker_results": [
-            {
-                "task_id": task["task_id"],
-                "task_index": task["task_index"],
-                "company": company,
-                "status": "done",
-                "attempts": 1,
-                "duration_ms": int((time.monotonic() - started) * 1000),
-                "error": None,
-            }
-        ],
-        "node_status": {task["task_id"]: "done"},
-        "step_count": 1,
-    }
+    worker_graph = None
+
+    for attempt in range(1, task["max_attempts"] + 1):
+        try:
+            initial = _fresh_input(state)
+            # 검증용 입력을 따로 보존해 호출 중 변경도 시도 간에 전달하지 않는다.
+            invoke_input = copy.deepcopy(initial)
+            if worker_graph is None:
+                worker_graph = build_worker_graph()
+            result = worker_graph.invoke(invoke_input, config=config)
+            payload = _successful_payload(result, initial, company)
+        except Exception as exc:  # noqa: BLE001 -- 기업 단위 실패로 부모 실행을 중단하지 않는다
+            error = f"{type(exc).__name__}: {exc}"
+            duration_ms = int((time.monotonic() - started) * 1000)
+            status = "retry" if attempt < task["max_attempts"] else "excluded"
+            if status == "retry":
+                continue
+            payload = {}
+        else:
+            status = "done"
+            error = None
+            duration_ms = int((time.monotonic() - started) * 1000)
+
+        return {
+            **payload,
+            "worker_results": [
+                {
+                    "task_id": task_id,
+                    "task_index": task["task_index"],
+                    "company": company,
+                    "status": status,
+                    "attempts": attempt,
+                    "duration_ms": duration_ms,
+                    "error": error,
+                }
+            ],
+            "node_status": {task_id: status},
+            "step_count": 1,
+        }
+
+    raise ValueError("Worker max_attempts는 1 이상이어야 합니다.")
