@@ -2,6 +2,7 @@
 
 from collections import Counter
 from threading import Barrier, Lock
+from unittest.mock import Mock
 
 import pytest
 
@@ -130,3 +131,61 @@ def test_worker_graph_keeps_company_payload_local(fake_nodes):
         result = graph.invoke(payload(name))
         assert result["startup_profile"] == {"name": name}
         assert all(ref["company"] == name for ref in result["references"])
+
+
+DONE_KEYS = {
+    "evaluation_history",
+    "references",
+    "worker_results",
+    "node_status",
+    "step_count",
+}
+
+
+def test_run_worker_returns_only_parent_contract(fake_nodes):
+    fake_nodes()
+    out = worker.run_worker(payload(), {})
+    assert set(out) == DONE_KEYS
+    assert out["evaluation_history"] == [{"name": "Alpha", "verdict": "보류"}]
+    assert out["node_status"] == {"trace:0": "done"}
+    assert out["step_count"] == 1
+    assert out["worker_results"][0] == {
+        "task_id": "trace:0",
+        "task_index": 0,
+        "company": "Alpha",
+        "status": "done",
+        "attempts": 1,
+        "duration_ms": out["worker_results"][0]["duration_ms"],
+        "error": None,
+    }
+    assert out["worker_results"][0]["duration_ms"] >= 0
+
+
+def test_run_worker_passes_config_unchanged(monkeypatch):
+    state = payload()
+    graph = Mock()
+    graph.invoke.return_value = {
+        **state,
+        "evaluation_history": [{"name": "Alpha"}],
+        "last_error": "must not leak",
+        "final_report": "must not leak",
+    }
+    monkeypatch.setattr(worker, "build_worker_graph", lambda: graph)
+    config = {"metadata": {"trace_id": "trace"}, "tags": ["worker-test"]}
+    result = worker.run_worker(state, config)
+    assert graph.invoke.call_args.kwargs["config"] is config
+    assert set(result) == DONE_KEYS
+
+
+@pytest.mark.parametrize(
+    "records", [[], [{"name": "Beta"}], [{"name": "Alpha"}, {"name": "Alpha"}]]
+)
+def test_bad_evaluation_history_is_not_success(monkeypatch, records):
+    graph = Mock()
+    graph.invoke.return_value = {
+        "evaluation_history": records,
+        "references": payload()["references"],
+    }
+    monkeypatch.setattr(worker, "build_worker_graph", lambda: graph)
+    with pytest.raises(ValueError, match="평가 이력 1건"):
+        worker.run_worker(payload(), {})
