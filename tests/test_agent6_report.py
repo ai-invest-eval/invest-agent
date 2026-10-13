@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 
 from src.agents import agent6_report as a6
-from src.tools.report_format import collect_references
+from src.tools.report_format import collect_references, rank_records
 
 SAMPLES = Path(__file__).resolve().parents[1] / "samples"
 BAD = "잘못된 문단: 팀 소항목에 시장 규모가 섞임"
@@ -173,7 +173,9 @@ def test_feedback_reaches_llm_task_in_both_paths(monkeypatch, fake_pdf):
     feedback = ["Groundedness 미달: 2.3 시장 규모 수치 근거 없음"]
     for name in ("report_state", "report_state_no_pass"):
         a6.report_writer({**load(name), "eval_feedback": feedback})
-    assert len(tasks) == 2
+    # 통과 보고서 1회 + 무추천 보고서(요약 1회 + 상위 후보 상세 검토 HELD_DETAIL_COUNT회)
+    no_pass_records = len(load("report_state_no_pass")["evaluation_history"])
+    assert len(tasks) == 2 + min(a6.HELD_DETAIL_COUNT, no_pass_records)
     assert all("2.3 시장 규모 수치 근거 없음" in t for t in tasks)
     assert all("지적된 부분만 고쳐라" in t for t in tasks)
 
@@ -330,3 +332,55 @@ def test_report_draft_follows_shared_contract(monkeypatch, fake_pdf):
     # REFERENCE 번호는 묶음 이름과 함께: 보고서의 번호 체계와 같다
     assert all(" " in key for key in draft["reference_map"])
     assert draft["reference_map"]
+
+
+# ---------------------------------------------------------------- 무추천 보고서 3장: 상위 후보 상세 검토
+
+
+def test_no_pass_report_adds_held_detail_chapter(monkeypatch, fake_pdf):
+    no_llm(monkeypatch)
+    state = load("report_state_no_pass")
+    update = a6.report_writer(state)
+    md = update["final_report"]
+    ranked = [r["name"] for _, _, r in rank_records(state["evaluation_history"])]
+    expected = ranked[: a6.HELD_DETAIL_COUNT]
+    assert "## 3. 상위 후보 상세 검토 (보류)" in md
+    assert "투자 추천이 아니다" in md
+    for i, name in enumerate(expected, 1):
+        assert f"### 3.{i} {name}" in md
+        assert f"#### 3.{i}.7 보류 사유와 리스크" in md
+    # 통과 0곳 보고서 계약: 영역별 점수는 표시하지 않는다
+    assert "**창업자 " not in md
+    # 3장은 REFERENCE 앞, SUMMARY·REFERENCE 순서 유지
+    assert md.index("## 3. 상위 후보") < md.index("## REFERENCE")
+    details = update["report_draft"]["payload"]["details"]
+    assert [d["company"] for d in details] == expected
+
+
+def test_held_detail_llm_input_has_no_scores(monkeypatch, fake_pdf):
+    payloads = []
+
+    def fake(schema, payload, task, *a, **k):
+        payloads.append((schema, payload, task))
+        return None
+
+    monkeypatch.setattr(a6, "_call_llm", fake)
+    a6.report_writer(load("report_state_no_pass"))
+    held = [(p, t) for schema, p, t in payloads if schema is a6.HeldSections]
+    assert held, "상위 후보 상세 검토 LLM 호출이 있어야 한다"
+    for payload, task in held:
+        assert "area_scores" not in payload and "total" not in payload
+        for data in payload["sections"].values():
+            for item in (data.get("questions") or {}).values():
+                assert "score" not in (item or {})
+        assert "추천하거나" in task
+
+
+def test_rebuild_reads_old_no_pass_draft_without_details(monkeypatch, fake_pdf):
+    no_llm(monkeypatch)
+    state = load("report_state_no_pass")
+    draft = a6.report_writer(state)["report_draft"]
+    old = {**draft, "payload": {k: v for k, v in draft["payload"].items() if k != "details"}}
+    md = a6.rebuild_markdown(state, old, 0)
+    assert "## 3. 상위 후보 상세 검토" not in md
+    assert "## REFERENCE" in md

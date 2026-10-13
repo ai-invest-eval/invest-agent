@@ -24,7 +24,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from src.config import KST, LLM_MODEL, LLM_TEMPERATURE
+from src.config import KST, LLM_MODEL, LLM_TEMPERATURE, MAX_REPORT_PAGES
 from src.schemas import EvaluationRecord, SynthesizerUpdate
 from src.state import InvestmentState
 from src.tools.report_format import (
@@ -49,7 +49,10 @@ from src.tools.report_format import (
     uses_fixed_fx,
 )
 
-MAX_PAGES = 5
+# 초안 단계 쪽수 목표. 과제 기준(최대 10쪽)과 같게 두고, 넘치면 문단 길이·글자 크기를 줄인다.
+MAX_PAGES = MAX_REPORT_PAGES
+# 통과 기업이 없을 때 상세 검토(3장)를 쓸 상위 후보 수
+HELD_DETAIL_COUNT = int(os.getenv("REPORT_HELD_DETAIL_COUNT", "2"))
 # 쪽수가 넘칠 때 단계별로 줄이는 LLM 문단 최대 글자 수
 SECTION_CHAR_LIMITS = [650, 480, 340, 230]
 SECTION_KEYS = ["2.1", "2.2", "2.3", "2.4", "2.5", "2.6", "2.7"]
@@ -153,6 +156,31 @@ class NoPassDraft(BaseModel):
     summary_reasons: list[str] = Field(description="투자 추천이 없는 핵심 이유 2~3문장")
     top_gap: str = Field(description="최고점 후보가 기준에 못 미친 영역과 근거")
     recheck: str = Field(description="어떤 정보가 확보되면 다시 평가할지")
+
+
+class HeldSections(BaseModel):
+    """통과 0곳 보고서의 상위 후보 상세 검토 문장. 투자 추천이 아니라 보류 사유를 설명한다."""
+
+    s2_1: str = Field(description="sections['2.1'] 데이터만 사용: 기업 개요와 사업 아이디어")
+    s2_2: str = Field(description="sections['2.2'] 데이터만 사용: 기술력과 AI 검증")
+    s2_3: str = Field(description="sections['2.3'] 데이터만 사용: 시장 규모와 성장성")
+    s2_4: str = Field(description="sections['2.4'] 데이터만 사용: 경쟁 구도와 차별성")
+    s2_5: str = Field(description="sections['2.5'] 데이터만 사용: 팀 구성")
+    s2_6: str = Field(description="sections['2.6'] 데이터만 사용: 실적과 투자 조건")
+    s2_7: str = Field(description="sections['2.7'] 데이터만 사용: 보류 사유·리스크와 한계점")
+
+
+class HeldDetail(HeldSections):
+    company: str
+
+
+class NoPassReportDraft(NoPassDraft):
+    """report_draft.payload 형식. LLM 호출 스키마(NoPassDraft·HeldSections)와 분리한다.
+
+    details가 없는 예전 초안도 그대로 읽힌다(기본값 빈 목록).
+    """
+
+    details: list[HeldDetail] = Field(default_factory=list)
 
 
 SYSTEM_PROMPT = """너는 벤처캐피털 투자 심사역이다. 주어진 평가 데이터만 근거로 투자 심사 보고서 문장을 한국어로 쓴다.
@@ -435,6 +463,38 @@ def _write_detail(
         log["replaced"] = still
         draft = _swap(draft, still, fallback)
     return draft, log
+
+
+def _held_inputs(record: EvaluationRecord) -> dict:
+    """상세 검토 LLM 입력. 통과 0곳 보고서 계약대로 영역·질문 점수는 빼고 근거만 준다."""
+    inputs = _section_inputs(record)
+    inputs.pop("area_scores", None)
+    inputs.pop("total", None)
+    for data in inputs["sections"].values():
+        for item in (data.get("questions") or {}).values():
+            if isinstance(item, dict):
+                item.pop("score", None)
+    inputs["hold_detail"] = hold_line(record)
+    return inputs
+
+
+def _write_held_detail(
+    record: EvaluationRecord, feedback: list[str] | None = None
+) -> HeldDetail:
+    """보류된 상위 후보 1곳의 2.1~2.7 검토 문장. LLM 실패 시 근거 문장으로 채운다(사실 생성 없음)."""
+    task = (
+        "이 기업은 투자 기준에 미달해 보류된 후보다. 투자를 추천하거나 긍정적 결론을 내리지 않는다. "
+        "2.1~2.7 소항목을 작성하라. 소항목마다 sections의 해당 키 데이터만 쓰고, "
+        "확인된 사실과 정보 부족을 구분한다. 2.7에는 hold_detail의 보류 사유와 미확인 관문·정보 부족을 쓴다."
+    ) + _feedback_task(feedback)
+    draft = _call_llm(HeldSections, _held_inputs(record), task, SECTION_CHAR_LIMITS[0])
+    if draft is None:
+        fallback = _fallback_detail(record)
+        draft = HeldSections(
+            **{k: getattr(fallback, k) for k in HeldSections.model_fields}
+        )
+        draft.s2_7 = f"보류 사유: {hold_line(record)}."
+    return HeldDetail(company=record["name"], **draft.model_dump())
 
 
 def _evidence_text(record: EvaluationRecord, questions: list[str]) -> str:
@@ -740,6 +800,47 @@ def _no_pass_payload(record: EvaluationRecord) -> dict:
     }
 
 
+HELD_SECTION_TITLES = {
+    "2.1": "기업 개요와 사업 아이디어",
+    "2.2": "기술력과 AI 검증",
+    "2.3": "시장 규모와 성장성",
+    "2.4": "경쟁 구도와 차별성",
+    "2.5": "팀 구성",
+    "2.6": "실적과 투자 조건",
+    "2.7": "보류 사유와 리스크",
+}
+
+
+def _held_detail_chapter(records, details: list[HeldDetail], limit: int) -> list[str]:
+    """3장 상위 후보 상세 검토. 사실 줄은 코드가, 문단은 LLM이 쓴다. 영역별 점수는 표시하지 않는다."""
+    if not details:
+        return []
+    by_name = {normalize_name(r["name"]): r for r in records}
+    parts = [
+        "## 3. 상위 후보 상세 검토 (보류)",
+        '<p class="note">투자 추천이 아니다. 점수가 높았던 보류 후보가 어떤 근거로 기준에 미달했는지 설명한다.</p>',
+    ]
+    for i, detail in enumerate(details, 1):
+        record = by_name.get(normalize_name(detail.company))
+        if record is None:
+            continue
+        facts = {
+            "2.1": _facts_2_1(record),
+            "2.6": _facts_2_6(record),
+            "2.7": _facts_2_7(record),
+        }
+        parts.append(
+            f"### 3.{i} {record['name']} — 총점 {fmt_score(record['total'])}점, 보류\n\n"
+            f"- 판정: 보류 — {hold_line(record)}"
+        )
+        for j, key in enumerate(SECTION_KEYS, 1):
+            prose = _trim(_remove_intro(getattr(detail, "s" + key.replace(".", "_"))), limit)
+            fact = facts.get(key)
+            body = f"{fact}\n\n{prose}" if fact else prose
+            parts.append(f"#### 3.{i}.{j} {HELD_SECTION_TITLES[key]}\n\n{body}")
+    return parts
+
+
 def _build_no_pass_report(
     records,
     ranked,
@@ -779,6 +880,7 @@ def _build_no_pass_report(
             + "\n\n"
             + _trim(_remove_intro(draft.top_gap), limit),
             "### 2.3 재검토 조건\n\n" + _trim(_remove_intro(draft.recheck), limit),
+            *_held_detail_chapter(records, getattr(draft, "details", []), limit),
             "## REFERENCE",
             reference_section(refs, order),
         ]
@@ -874,6 +976,19 @@ def _add_excluded(md_text: str, state: InvestmentState) -> str:
 # ============================================================ 구조화 초안 → Markdown
 
 
+def _merge_refs(base: list[dict], extra: list[dict]) -> list[dict]:
+    """출처 목록 병합. 같은 문서는 한 번만 두고 인용 쪽수(cited_pages)를 합친다."""
+    merged = {(r.get("title"), r.get("url")): {**r, "cited_pages": list(r.get("cited_pages") or [])} for r in base}
+    for r in extra:
+        key = (r.get("title"), r.get("url"))
+        if key not in merged:
+            merged[key] = {**r, "cited_pages": list(r.get("cited_pages") or [])}
+            continue
+        pages = merged[key]["cited_pages"]
+        pages.extend(p for p in r.get("cited_pages") or [] if p not in pages)
+    return list(merged.values())
+
+
 def _prepare(state: InvestmentState) -> dict:
     """LLM 없이 계산되는 집계 결과. 같은 State면 항상 같은 값이다."""
     records = _ordered_records(state)
@@ -926,7 +1041,10 @@ def _make_draft(
         + (", ".join(missing_questions(top)) or "없음")
         + ")과 미확인 관문의 근거가 확보되면 다시 평가한다.",
     )
-    return draft, None
+    details = [
+        _write_held_detail(r, feedback) for _, _, r in ranked[:HELD_DETAIL_COUNT]
+    ]
+    return NoPassReportDraft(**draft.model_dump(), details=details), None
 
 
 def char_level_of(report_draft: dict | None) -> int:
@@ -984,8 +1102,13 @@ def _assemble(
         )
     else:
         top = ranked[0][2]
-        draft = NoPassDraft.model_validate(_draft_payload(report_draft))
+        draft = NoPassReportDraft.model_validate(_draft_payload(report_draft))
         refs = collect_references(top, references, analyses=False)
+        # 3장 상세 검토 기업은 분석 글을 쓴 에이전트의 출처까지 보고서에 남긴다.
+        detailed = {normalize_name(d.company) for d in draft.details}
+        for record in records:
+            if normalize_name(record["name"]) in detailed:
+                refs = _merge_refs(refs, collect_references(record, references))
         md = _build_no_pass_report(
             records, ranked, draft, refs, limit, keyword, ctx["order"]
         )

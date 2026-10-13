@@ -246,6 +246,9 @@ def build_evidence_bundle(state: dict, chunks: dict[str, str] | None = None) -> 
         key=lambda pair: (order.get(pair[1].get("name"), 10**6), pair[0]),
     )]
     focus = focus_company(records)
+    # 무추천 보고서 3장에서 상세 검토한 기업도 질문별 근거·원문 인용을 넣는다(보고서에 나오는 범위).
+    payload = (state.get("report_draft") or {}).get("payload") or {}
+    detailed = {d.get("company") for d in payload.get("details") or [] if isinstance(d, dict)}
     bundle: list[dict] = []
     for fallback_index, r in enumerate(records):
         company = r.get("name")
@@ -262,7 +265,7 @@ def build_evidence_bundle(state: dict, chunks: dict[str, str] | None = None) -> 
         bundle.append({**base, "claim_area": "hold_reason" if r.get("hold_reason") else "summary",
                        "question": None, "evidence_kind": "rule_result", "text": _cut(rule_text), "source_ids": [],
                        "source_locator": None, "excerpt_verified": False})
-        if company != focus:
+        if company != focus and company not in detailed:
             continue
         for q, ev in sorted((r.get("question_evidence") or {}).items()):
             if ev.get("missing"):
@@ -361,6 +364,17 @@ def judge_targets(state: dict) -> list[tuple[str, str]]:
             targets.append(("2.2 최고점 후보 미달 원인", payload["top_gap"]))
         if payload.get("recheck"):
             targets.append(("2.3 재검토 조건", payload["recheck"]))
+        # 3장 상위 후보 상세 검토(보류): 기업별 s2_* 문장도 LLM이 썼으므로 채점한다.
+        for i, detail in enumerate(payload.get("details") or [], 1):
+            company = detail.get("company") or f"후보 {i}"
+            keys = sorted(
+                (k for k in detail if re.fullmatch(r"s2_\d+", k)),
+                key=lambda k: int(k.split("_")[1]),
+            )
+            for key in keys:
+                if detail.get(key):
+                    sub = key.split("_")[1]
+                    targets.append((f"3.{i}.{sub} {company} 상세 검토", detail[key]))
     return [(name, str(text)) for name, text in targets if str(text or "").strip()]
 
 
