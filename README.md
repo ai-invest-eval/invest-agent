@@ -51,6 +51,9 @@ flowchart TD
 
 Worker 내부의 하위 에이전트(2, 3-A, 3-B, 4, 5)는 [`src/agents/`](src/agents/)의 기존 노드 함수를 그대로 사용한다.
 
+- Worker끼리는 연결 엣지가 없다. 입력은 `Send` 페이로드(`task`, `trace_id`, `selected_startup`, `analysis_focus`, `references`)뿐이고, 결과는 부모 State의 reducer 필드로만 합쳐진다.
+- 같은 superstep의 Worker가 모두 끝난 뒤 synthesizer가 한 번 실행된다.
+
 ## 4. Orchestrator-Workers 필수 항목 대응
 
 | 필수 항목 | 구현 방식 | 코드 위치 |
@@ -77,13 +80,13 @@ Worker 내부의 하위 에이전트(2, 3-A, 3-B, 4, 5)는 [`src/agents/`](src/a
 
 | 항목 | 설계 | 코드 위치 |
 |---|---|---|
-| 제어 vs 페이로드 분리 | 4구역 주석 블록으로 분리. 조정에 필요한 최소치는 Loop 구역에만 둠. 후보별 페이로드는 `WorkerState`로 격리 | `state.py` |
-| 관측성 위치 | 결정 로그(계획 근거, 재시도·제외 사유, Worker별 `duration_ms`, 품질 판정·종료 사유)는 State가 아닌 `outputs/trace/{trace_id}.jsonl`과 LangSmith에 기록. State에는 판정 결과와 Worker 결과 요약만 | `observability.py` |
-| 지속성 비용 | 검색 원문·RAG 청크·Tavily 응답은 State에 넣지 않음(탐색 원본은 `outputs/agent1/*.json`). 누적 필드는 기업당 1건이라 `max_candidates`로 크기가 제한됨 | `agent1_search.py`, `state.py` |
-| 상관 | 실행 시작 시 `trace_id = uuid4().hex` 생성 → State, JSONL 로그, LangSmith `metadata.trace_id`, 체크포인트 `thread_id`, 출력 파일명에 공통 사용 | `state.py`, `app.py` |
-| 재개/복구 | 체크포인터 + `thread_id=trace_id`. 현재 `InMemorySaver`라 **같은 프로세스 안에서만** 재개 가능. `node_status`에 task별 `done/excluded`, `worker_results[].error`, `last_error` 보존 | `graph.py` |
-| 동시 처리 | 병렬 Worker가 쓰는 부모 키는 전부 reducer 보유. reducer 없는 `last_error`는 Worker가 쓰지 않음(직렬 노드만). `max_concurrency`로 API 한도 보호 | `state.py`, `worker.py`, `app.py` |
-| 종료 보장 | ① Worker 재시도 상한 2회 ② API 호출 단위 timeout(LLM 60초·Tavily 30초) ③ 보고서 작성 상한 3회 ④ 재작성 불가 문제만 남으면 즉시 종료 ⑤ `step_count` 상한(`2N+10`) ⑥ `recursion_limit`. 모든 종료 경로는 `finalize`를 거쳐 `termination_reason` 기록 | `config.py`, `routing.py`, `finalize.py` |
+| 제어 vs 페이로드 분리 | 4구역 주석 블록으로 분리. 제어 정보(`trace_id`, `step_count`, `node_status`, `report_attempts`, `last_error`)는 Loop 구역에, 작업 결과는 Working 구역에 둠. 기업별 프로필·분석 글·현재 판정은 부모에서 빼고 `WorkerState`로 격리 | `state.py` |
+| 관측성 위치 | 결정 로그(계획 근거, 재시도·제외 사유, Worker별 `duration_ms`, 품질 판정·종료 사유)는 State가 아닌 `outputs/trace/{trace_id}.jsonl`과 LangSmith에 기록. State에는 판정 결과와 Worker 결과 요약만. 로그에 쓰기 전 API 키는 `[REDACTED]`로 가림 | `observability.py` |
+| 지속성 비용 | 검색 원문·RAG 청크·Tavily 응답은 State에 넣지 않음(탐색 원본은 `outputs/agent1/*.json`). 누적 필드는 기업당 1건이라 `max_candidates`로 크기가 제한됨. `eval_feedback`은 매 판정마다 덮어써 쌓이지 않음 | `agent1_search.py`, `state.py` |
+| 상관 | 실행 시작 시 `trace_id = uuid4().hex` 생성 → State, JSONL 로그, LangSmith `metadata.trace_id`, 체크포인트 `thread_id`, 출력 파일명에 공통 사용. 서브 태스크는 `task_id = {trace_id}:{task_index}` | `state.py`, `app.py` |
+| 재개/복구 | 부모 체크포인터 `InMemorySaver` + `thread_id=trace_id`, Worker 서브그래프는 `checkpointer=False`로 분리. **같은 프로세스 안에서만** 재개 가능하고 프로세스 재시작 복구는 지원하지 않음. `node_status`에 task별 `done/excluded`, `worker_results[].error`, `last_error` 보존 | `graph.py`, `worker.py` |
+| 동시 처리 | 병렬 Worker가 쓰는 부모 키는 전부 reducer 보유. 리스트(`evaluation_history`, `references`, `worker_results`)와 `step_count`는 `operator.add`, `node_status`는 `merge_dict`로 병합. reducer 없는 `last_error`는 Worker가 쓰지 않음(직렬 노드만). `max_concurrency`로 API 한도 보호 | `state.py`, `worker.py`, `app.py` |
+| 종료 보장 | ① Worker 재시도 상한 2회 ② API 호출 단위 timeout(LLM 60초·Tavily 30초) ③ 보고서 작성 상한 3회 ④ 재작성 불가 문제만 남으면 즉시 종료 ⑤ `step_count` 상한(`후보 수 × 2 + 10`) ⑥ 부모 `recursion_limit = 24`(Worker 수와 무관). 모든 종료 경로는 `finalize`를 거쳐 `termination_reason` 기록 | `config.py`, `routing.py`, `finalize.py` |
 
 ### Fan-out / Fan-in 대응
 
@@ -217,14 +220,27 @@ Judge가 보고서 문장과 근거를 직접 대조할 수 있도록, **보고�
 
 ![C 트레이스: 히츠 Worker 제외](docs/images/tracing-live-c-fail.png)
 
+**A2 품질 구간 재실행 (#19·#21 이후).** 위 실행 이후 Judge 채점 범위를 고친 뒤, A2의 Worker 결과(10개 기업의 점수·판정)를 그대로 두고 `synthesizer → quality_eval → finalize` 구간만 최신 코드로 다시 실행했다. 보고서가 1회 만에 품질 평가를 통과했다.
+
+![A2 품질 구간 재실행 트레이스](docs/images/tracing-rejudge-a2.png)
+
 **품질 루프 (fixture `quality_loop`, 가상 실행).** 첫 평가에서 미달 판정을 받은 보고서가 재작성된 뒤 다시 평가를 통과해 `finalize`로 끝나는 흐름이다. `synthesizer → quality_eval → route_after_eval`이 두 번 반복되고, `worker` 아래에 기업별 하위 노드(2 → 3A·3B → 4 → 5)가 중첩돼 있다. fixture는 실제 API·Judge·PDF를 실행하지 않으므로 노드별 소요 시간이 0초로 표시된다.
 
 ![품질 루프 트레이스 (fixture)](docs/images/tracing-fixture-quality-loop.png)
 
 ### 한계
 
-- **실제 실행에서 품질 평가를 통과하지 못했다.** 세 실행 모두 Judge 점수가 groundedness 2 · neutrality 3 · bias 2로 같았고, 재작성 3회 동안 오르지 않았다. 원인은 Judge가 코드가 조립한 부분(순위표·판정 사유)까지 채점해 재작성으로 고칠 수 없는 지적을 한 것이었다. Judge가 LLM 작성 문장만 채점하도록 고친 수정(#19)은 위 실행 이후에 머지됐다.
-- **1번 자격 판정이 느슨하다.** 대원제약(상장 제약사), 메가존클라우드, Fathom·Alloy Therapeutics가 후보로 통과했다. 5번 관문에서 모두 보류로 걸러져 투자 추천으로 이어지지는 않았다. 보류 사유 중 "핵심 특허 분쟁 패소", "CEO 이탈" 같은 사실은 LLM 판정 결과이며 별도로 검증하지 않았다.
+- **품질 평가 개선 과정.** 실제 실행 세 번 모두 Judge 점수가 groundedness 2 · neutrality 3 · bias 2로 같았고, 재작성 3회 동안 오르지 않아 `max_attempts`로 끝났다. 원인은 Judge가 코드가 조립한 부분(순위표·판정 사유·보류 사유 분포)까지 채점해, 재작성으로 고칠 수 없는 지적을 한 것이었다. Judge가 LLM이 작성한 문장만 채점하고 근거 묶음을 보고서 범위로 맞추도록 고쳤다(#19, #21). 같은 A2 Worker 결과로 품질 구간만 다시 실행하자 1회 만에 통과했다.
+
+  | | 실제 실행 A2 (수정 전) | 품질 구간 재실행 (수정 후) |
+  |---|---|---|
+  | Judge (근거·중립·편향) | 2 · 3 · 2 | 5 · 5 · 5 |
+  | 보고서 작성 | 3회 | 1회 |
+  | 종료 사유 | `max_attempts` | `passed` |
+
+  **제출한 보고서 PDF는 이 재실행본이다.** 후보 탐색과 Worker 평가는 실제 실행 A2 결과를 그대로 쓰고, 보고서 작성·품질 평가·최종 저장만 최신 코드로 다시 실행했다. 통과 기업이 없는 보고서는 LLM이 쓰는 문장이 4개(보류 사유 2개, 최고점 후보 미달 원인, 재검토 조건)뿐이라, 5점은 이 문장들에 근거 위반이 없다는 뜻이다. 나머지 본문은 코드가 데이터로 조립한다.
+- **재개 범위.** 체크포인터가 메모리 기반이라 프로세스가 종료되면 이어서 실행할 수 없다.
+- **1번 자격 판정이 느슨하다.** `ALLOW_RELAXED_QUALIFY=1`에서는 확인된 부적격만 탈락시킨다. 그래서 대원제약(상장 제약사), 메가존클라우드, Fathom·Alloy Therapeutics가 후보로 통과했다. 5번 관문에서 모두 보류로 걸러져 투자 추천으로 이어지지는 않았다. 보류 사유 중 "핵심 특허 분쟁 패소", "CEO 이탈" 같은 사실은 LLM 판정 결과이며 별도로 검증하지 않았다.
 - **Tavily dev 키 한도.** 실행을 동시에 돌리면 차단된다. 실행을 하나씩 순서대로 돌리고 `TAVILY_MIN_INTERVAL_SECONDS=5`, `WORKER_CONCURRENCY=2`로 설정해 해결했다.
 
 ## 8. Tech Stack
@@ -258,7 +274,7 @@ Judge가 보고서 문장과 근거를 직접 대조할 수 있도록, **보고�
 ├── src/
 │   ├── orchestration/            # 조정 계층
 │   │   ├── orchestrator.py       # 계획 수립 + dispatch(Send) + Planner 프롬프트
-│   │   ├── worker.py             # 기업별 서브그래프 + 재시도/제외
+│   │   ├── worker.py             # 기업별 서브그래프 + 재시도/제외 + 실패 주입
 │   │   ├── quality_eval.py       # 규칙 + LLM Judge (판정만)
 │   │   ├── routing.py            # decide_termination · route_after_eval (순수 함수)
 │   │   ├── finalize.py           # 품질 결과 반영 + 최종 저장
@@ -269,7 +285,7 @@ Judge가 보고서 문장과 근거를 직접 대조할 수 있도록, **보고�
 │   ├── tools/                    # 웹검색·구조화 LLM·보고서 변환
 │   ├── graph.py                  # 최상위 그래프 조립만
 │   ├── state.py                  # InvestmentState(부모) + WorkerState
-│   ├── schemas.py                # SubTask · WorkerResult · EvalVerdict 등
+│   ├── schemas.py                # SubTask · WorkerResult · EvalVerdict · ReportDraft 등
 │   └── config.py                 # 상한·상수
 ├── data/{technology,market}/     # 원본 PDF 15개
 ├── docs/                         # 투자 기준·데이터 계약·실행 가이드, images/ 트레이스 캡처
@@ -323,6 +339,16 @@ uv run --extra rag python app.py --agent 1 --keyword "AI 신약개발" --max-can
 uv run --extra rag python -m pytest -q
 ```
 
+| fixture | 확인하는 흐름 |
+|---|---|
+| `empty` | 후보 0곳 → Worker 없이 synthesizer |
+| `two`, `three` | 후보 수만큼 Worker 생성 |
+| `partial_fail` | 일부 Worker 제외 후 계속 진행 |
+| `all_fail` | 전체 실패에도 finalize까지 종료 |
+| `quality_loop` | 첫 평가 미달 → 재작성 → 통과 → finalize |
+
+fixture는 실제 웹·LLM·RAG·PDF를 실행하지 않는다. fixture의 품질 통과는 제어 흐름 확인용이며 실제 보고서 품질을 뜻하지 않는다.
+
 | 결과물 | 위치 |
 |---|---|
 | 보고서 | `outputs/investment_report.md`, `.pdf` |
@@ -330,7 +356,7 @@ uv run --extra rag python -m pytest -q
 | 결정 로그 | `outputs/trace/{trace_id}.jsonl` |
 | 실행 State | `outputs/pipeline_{trace_id}_state.json` |
 
-주요 환경변수: `WORKER_CONCURRENCY`(기본 3), `TAVILY_MIN_INTERVAL_SECONDS`(기본 2), `REPORT_INTERNAL_JUDGE`(기본 0), `FORCE_FAIL_COMPANY`(시연용), `ALLOW_CACHED_FALLBACK`(실제 시연에서는 0). 전체 목록은 [`.env.example`](.env.example)에 있다.
+주요 환경변수: `WORKER_CONCURRENCY`(기본 3), `TAVILY_MIN_INTERVAL_SECONDS`(기본 2), `REPORT_INTERNAL_JUDGE`(기본 0), `FORCE_FAIL_COMPANY`(시연용), `ALLOW_CACHED_FALLBACK`(실제 실행 전 꺼져 있는지 확인 — 켜면 검색 실패 시 캐시 후보를 써서 키워드를 바꿔도 같은 후보가 나옴). 전체 목록은 [`.env.example`](.env.example)에 있다.
 
 ## 11. Lessons Learned
 
@@ -362,7 +388,7 @@ LLM이 제휴 제약사를 모회사로 오인해 유망 기업이 "대기업 �
 
 | 담당자 | 수행 역할 | 주요 파일 |
 |---|---|---|
-| 구본준 | 공용 State·스키마·그래프 조립, 종료 라우팅, fixture, 통합 실행 | `state.py`, `schemas.py`, `graph.py`, `routing.py`, `fixtures.py`, `app.py` |
+| 구본준 | 공용 State·데이터 계약 설계, 종료 라우팅, 그래프 조립, 실행 CLI·fixture, 브랜치·PR 통합 관리, 실제 실행·트레이스 수집 | `state.py`, `schemas.py`, `graph.py`, `routing.py`, `fixtures.py`, `app.py` |
 | 박민규 | Orchestrator 계획 수립·Dynamic Fan-out, 3-A/3-B focus 연결 | `orchestrator.py`, `rag_analysis.py` |
 | 원종현 | Worker 서브그래프, 재시도·제외 Fall-back | `worker.py` |
 | 김한솔 | 품질 평가(규칙 + LLM Judge, 근거 묶음) | `quality_eval.py` |
