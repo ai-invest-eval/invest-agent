@@ -253,8 +253,14 @@ def _v(value) -> str:
     return UNKNOWN if value in (None, "", []) else str(value)
 
 
+def _page_key(page: str) -> tuple:
+    """쪽 번호를 숫자 순으로 정렬한다 ("10"이 "2" 앞에 오지 않게)."""
+    return (0, int(page), "") if page.isdecimal() else (1, 0, page)
+
+
 def _pages_suffix(ref: dict) -> str:
-    pages = ref.get("cited_pages") or []
+    # 병렬 Worker의 출처 도착 순서와 무관하게 같은 표기가 나오도록 정렬한다.
+    pages = sorted(ref.get("cited_pages") or [], key=_page_key)
     return f" (인용 p. {', '.join(pages)})" if pages else ""
 
 
@@ -264,7 +270,7 @@ def format_reference(ref: dict) -> str:
     title = _v(ref.get("title"))
     url = ref.get("url")
     if doc_type == "paper":
-        authors = ", ".join(ref.get("authors") or []) or UNKNOWN
+        authors = ", ".join(str(a) for a in ref.get("authors") or [] if a) or UNKNOWN
         vol = _v(ref.get("volume"))
         issue = f"({ref['issue']})" if ref.get("issue") else ""
         text = (
@@ -272,7 +278,9 @@ def format_reference(ref: dict) -> str:
             f"*{_v(ref.get('journal'))}*, {vol}{issue}, {_v(ref.get('pages'))}."
         )
     elif doc_type == "web":
-        who = ", ".join(ref.get("authors") or []) or _v(ref.get("issuer"))
+        who = ", ".join(str(a) for a in ref.get("authors") or [] if a) or _v(
+            ref.get("issuer")
+        )
         date = ref.get("published_date") or (
             str(ref["year"]) if ref.get("year") else UNKNOWN
         )
@@ -290,17 +298,61 @@ REFERENCE_GROUPS = [
 ]
 
 
-def reference_section(refs: list[dict]) -> str:
+def reference_sort_key(ref: dict, order: dict[str, int] | None = None) -> tuple:
+    """REFERENCE 번호를 고정하는 안정 키.
+
+    (첫 인용 기업의 task_index, 출처 유형 RAG→web, 발행처·저자, 연도, 제목, URL).
+    None은 빈 값으로 바꿔 비교 오류를 막는다. 같은 입력이면 Worker 완료 순서와 무관하게 같은 번호가 나온다.
+    """
+    order = order or {}
+    authors = [str(a) for a in ref.get("authors") or [] if a]
+    who = ref.get("issuer") or ", ".join(authors) or ""
+    index = order.get(normalize_name(ref.get("company")))
+    return (
+        index if isinstance(index, int) else len(order),
+        0 if ref.get("source") == "RAG" else 1,
+        normalize_name(who),
+        str(ref.get("year") or ""),
+        normalize_name(ref.get("title")),
+        (ref.get("url") or "").strip().lower(),
+    )
+
+
+def _grouped(
+    refs: list[dict], order: dict[str, int] | None
+) -> list[tuple[str, list[dict]]]:
+    """REFERENCE 표시 순서: 유형별 묶음(보고서·논문·웹), 묶음 안은 안정 키 순."""
+    groups = []
+    for doc_type, label in REFERENCE_GROUPS:
+        group = [r for r in refs if r.get("doc_type") == doc_type]
+        if group:
+            groups.append(
+                (label, sorted(group, key=lambda r: reference_sort_key(r, order)))
+            )
+    return groups
+
+
+def reference_map(refs: list[dict], order: dict[str, int] | None = None) -> dict:
+    """보고서 REFERENCE 번호("웹페이지 3" 등) → 출처 요약. 묶음마다 번호가 1부터 시작하므로 묶음 이름을 붙인다."""
+    return {
+        f"{label} {i}": {
+            "title": r.get("title"),
+            "url": r.get("url"),
+            "company": r.get("company"),
+            "source": r.get("source"),
+            "cited_pages": sorted(r.get("cited_pages") or [], key=_page_key),
+        }
+        for label, group in _grouped(refs, order)
+        for i, r in enumerate(group, 1)
+    }
+
+
+def reference_section(refs: list[dict], order: dict[str, int] | None = None) -> str:
+    """출처를 유형별(기관 보고서·학술 논문·웹페이지)로 묶고, 묶음 안에서는 안정 키로 정렬해 번호를 매긴다."""
     if not refs:
         return "보고서 작성에 사용한 출처가 State에 기록되지 않았다."
     lines = []
-    for doc_type, label in REFERENCE_GROUPS:
-        group = [r for r in refs if r.get("doc_type") == doc_type]
-        if not group:
-            continue
-        group.sort(
-            key=lambda r: (_v(r.get("issuer") or r.get("authors")), _v(r.get("year")))
-        )
+    for label, group in _grouped(refs, order):
         lines.append(f"**{label}**\n")
         lines.extend(f"{i}. {format_reference(r)}" for i, r in enumerate(group, 1))
         lines.append("")
