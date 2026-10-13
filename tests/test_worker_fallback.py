@@ -3,7 +3,7 @@
 import copy
 from collections import Counter
 from threading import Barrier, Lock
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -505,3 +505,17 @@ def test_worker_child_callbacks_remain_nested_in_parent(fake_nodes):
         "investment_decision",
     ):
         assert sum(n == name and parent in children for n, _, parent in starts) == 2
+
+
+def test_agent5_llm_has_bounded_api_calls():
+    from src.agents.agent5_decision import JudgeResult, _get_llm
+    from src.config import LLM_MODEL, LLM_TEMPERATURE
+
+    model = Mock()
+    with patch("langchain_openai.ChatOpenAI", return_value=model) as constructor:
+        result = _get_llm()
+    constructor.assert_called_once_with(
+        model=LLM_MODEL, temperature=LLM_TEMPERATURE, timeout=60, max_retries=1
+    )
+    model.with_structured_output.assert_called_once_with(JudgeResult)
+    assert result is model.with_structured_output.return_value
