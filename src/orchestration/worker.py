@@ -12,6 +12,7 @@ import time
 from langchain_core.runnables import RunnableConfig
 from langgraph.graph import END, START, StateGraph
 
+from src.orchestration.observability import log_decision
 from src.schemas import WorkerUpdate
 from src.state import WorkerState
 
@@ -110,6 +111,16 @@ def run_worker(state: WorkerState, config: RunnableConfig) -> WorkerUpdate:
             error = f"{type(exc).__name__}: {exc}"
             duration_ms = int((time.monotonic() - started) * 1000)
             status = "retry" if attempt < task["max_attempts"] else "excluded"
+            log_decision(
+                state["trace_id"],
+                "worker",
+                status,
+                error,
+                task_id=task_id,
+                company=company,
+                attempts=attempt,
+                duration_ms=duration_ms,
+            )
             if status == "retry":
                 continue
             payload = {}
@@ -117,6 +128,16 @@ def run_worker(state: WorkerState, config: RunnableConfig) -> WorkerUpdate:
             status = "done"
             error = None
             duration_ms = int((time.monotonic() - started) * 1000)
+            log_decision(
+                state["trace_id"],
+                "worker",
+                status,
+                "평가 완료",
+                task_id=task_id,
+                company=company,
+                attempts=attempt,
+                duration_ms=duration_ms,
+            )
 
         return {
             **payload,
