@@ -155,10 +155,15 @@ def test_api_free_fixture_cli(tmp_path):
     assert "실제 API·Judge·PDF 미실행" in output.getvalue()
 
 
-def test_live_stubs_fail_loudly(tmp_path):
+def test_live_unavailable_node_fails_loudly(tmp_path):
+    # 실제 B 구현 연결 후에도 외부 API 없이 미구현 노드 오류 처리를 검증한다.
+    def unavailable(state):
+        raise NotImplementedError("test-only unavailable node")
+
     with (
         patch("sys.argv", ["app.py"]),
         patch("app.PROJECT_ROOT", tmp_path),
+        patch("src.orchestration.orchestrator.orchestrator", unavailable),
         pytest.raises(SystemExit) as caught,
     ):
         app.main()
